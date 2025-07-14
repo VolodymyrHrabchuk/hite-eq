@@ -57,7 +57,20 @@ export default function ExcuteComponent() {
       y: e.targetTouches[0].clientY,
     };
   };
-
+  const handleBack = () => {
+    if (currentCardIndex > 0) {
+      // анимированно откатываем назад
+      setAnimating(true);
+      setTimeout(() => {
+        setCurrentCardIndex((prev) => prev - 1);
+        setShowVideoPlayer(false);
+        setInputValue("");
+        setAnimating(false);
+      }, 300);
+    } else {
+      router.back();
+    }
+  };
   const handleTouchEnd = () => {
     if (!touchStartRef.current || !touchEndRef.current) return;
 
@@ -199,7 +212,10 @@ export default function ExcuteComponent() {
         >
           {/* Заголовок и описание */}
           <div className='flex flex-col items-start -mt-10'>
-            <h1 className='mt-18 mb-6 flex items-start font-bold text-[24px]'>
+            <h1
+              className='mt-18 mb-6 flex items-start font-bold text-[24px]'
+              onClick={handleBack}
+            >
               <Image
                 src={Arrow}
                 alt='Arrow'

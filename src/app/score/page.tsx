@@ -1,19 +1,18 @@
 "use client";
 import TraitsCard from "../components/TransitCard";
+import { getUserScores } from "../lib/api";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 import { useEffect, useState } from "react";
 import First from "../../../public/first.svg";
 import Second from "../../../public/second.svg";
-import Third from "../../../public/third.svg";
-import Nib from "../../../public/nib.svg";
+
 import Image from "next/image";
 import Discover from "../../../public/discover.svg";
 import Execute from "../../../public/execute.svg";
 import Star from "../../../public/star.svg";
 import { LockClosedIcon } from "@heroicons/react/24/solid";
 import Block from "../../../public/block.svg";
-import Lock from "../../../public/lock.svg";
 import MorphingLock from "../components/AnimatedLock";
 import { Raleway } from "next/font/google";
 
@@ -25,33 +24,66 @@ const raleway = Raleway({
 });
 const Score = () => {
   const router = useRouter();
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [showPopup, setShowPopup] = useState(false);
+  // const [selectedIndex, setSelectedIndex] = useState(0);
+  // const [showPopup, setShowPopup] = useState(false);
   const [showTrainPopup, setShowTrainPopup] = useState(false);
   const [showExcutePopup, setShowExcutePopup] = useState(false);
-  const [unlockedLevel, setUnlockedLevel] = useState<number>(0);
+  // const [unlockedLevel, setUnlockedLevel] = useState<number>(0);
   const [lockAnimate, setLockAnimate] = useState(false);
-
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showPopup, setShowPopup] = useState(false);
+  // Используем по-штучные стейты для черт
+  const [competitiveness, setCompetitiveness] = useState(0);
+  const [composure, setComposure] = useState(0);
+  const [confidence, setConfidence] = useState(0);
+  const [commitment, setCommitment] = useState(0);
+  const [unlockedLevel, setUnlockedLevel] = useState(0);
   useEffect(() => {
-    // триггерим анимацию замочка при открытии любого попапа
-    if (showTrainPopup || showExcutePopup) {
-      setLockAnimate(false);
-      const t = setTimeout(() => setLockAnimate(true), 50);
-      return () => clearTimeout(t);
+    const shouldShow = localStorage.getItem("showTrainPopup") === "true";
+    if (shouldShow) {
+      setShowTrainPopup(true);
+      // чтобы не показывать попап второй раз
+      localStorage.removeItem("showTrainPopup");
     }
-  }, [showTrainPopup, showExcutePopup]);
-  const [scores, setScores] = useState<Record<string, number>>({
-    composure: 0,
-    confidence: 0,
-    competitiveness: 0,
-    commitment: 0,
-  });
+  }, []);
+  // const [scores, setScores] = useState<Record<string, number>>({
+  //   composure: 0,
+  //   confidence: 0,
+  //   competitiveness: 0,
+  //   commitment: 0,
+  // });
 
   const steps = [
     { image: Discover, title: "Discover" },
     { image: Star, title: "Train" },
     { image: Execute, title: "Execute" },
   ];
+
+  const handleStepClick = (index: number, isUnlocked: boolean) => {
+    setSelectedIndex(index);
+    if (!isUnlocked) {
+      setShowPopup(true);
+      return;
+    }
+    if (index === 0) discoverAssessment();
+    if (index === 1) trainAssessment();
+    if (index === 2) excuteAssessment();
+  };
+
+  const handleButtonClick = (
+    e: React.MouseEvent,
+    index: number,
+    isUnlocked: boolean
+  ) => {
+    e.stopPropagation();
+    if (!isUnlocked) {
+      setShowPopup(true);
+      return;
+    }
+    if (index === 0) discoverAssessment();
+    if (index === 1) trainAssessment();
+    if (index === 2) excuteAssessment();
+  };
 
   const discoverAssessment = () => {
     router.push(ROUTES.Discover);
@@ -67,13 +99,55 @@ const Score = () => {
     router.push(ROUTES.EXECUTEPLAN);
   };
 
+  // Score.tsx (только useEffect)
   useEffect(() => {
-    const storedState = localStorage.getItem("showTrainPopup");
-    setScores(JSON.parse(localStorage.getItem("hiteScores") || "{}"));
-    setShowTrainPopup(storedState === "true");
-    // Read unlocked level from localStorage
-    const level = parseInt(localStorage.getItem("level") || "0", 10);
-    setUnlockedLevel(level);
+    // 1) Сначала пробуем взять из локалки — там лежат свежие hiteScores
+    const raw = localStorage.getItem("hiteScores");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        setCompetitiveness(parsed.competitiveness ?? 0);
+        setComposure(parsed.composure ?? 0);
+        setConfidence(parsed.confidence ?? 0);
+        setCommitment(5.0);
+        setUnlockedLevel(parseInt(localStorage.getItem("level") || "0", 10));
+        return;
+      } catch {
+        console.warn("Bad JSON in hiteScores, попытаемся из API");
+      }
+    }
+
+    // 2) Если в локалке нет — дергаем API
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    getUserScores(userId)
+      .then((data) => {
+        setCompetitiveness(data.competitiveness_score);
+        setComposure(data.composure_score);
+        setConfidence(data.confidence_score);
+        setCommitment(data.commitment_score);
+        setUnlockedLevel(data.unlocked_level);
+      })
+      .catch((e) => {
+        console.warn("Fetch team failed, fallback to localStorage", e);
+        // Если API не вернул члена команды — всё равно рисуем из локалки
+        const raw2 = localStorage.getItem("hiteScores");
+        if (raw2) {
+          try {
+            const p = JSON.parse(raw2);
+            setCompetitiveness(p.competitiveness ?? 0);
+            setComposure(p.composure ?? 0);
+            setConfidence(p.confidence ?? 0);
+            setCommitment(p.commitment ?? 0);
+            setUnlockedLevel(
+              parseInt(localStorage.getItem("level") || "0", 10)
+            );
+          } catch {
+            console.error("И локалку не распарсить");
+          }
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -88,10 +162,11 @@ const Score = () => {
 
         <TraitsCard
           width='305px'
-          commitment={scores.commitment}
-          composure={scores.composure}
-          confidence={scores.confidence}
-          competitiveness={scores.competitiveness}
+          competitiveness={competitiveness}
+          composure={composure}
+          confidence={confidence}
+          commitment={commitment}
+          showArrow={false}
         />
 
         <div className='mt-5 bg-black/20 border border-white/20 p-4 w-157 rounded-xl overflow-hidden'>
@@ -198,16 +273,9 @@ const Score = () => {
                 <div
                   key={step.title}
                   className={`relative flex items-center space-x-4 border border-none px-4 py-3 rounded-full ml-4 ${
-                    isUnlocked ? "" : "opacity-50 pointer-events-none"
+                    isUnlocked ? "" : "opacity-50 "
                   }`}
-                  onClick={() => {
-                    if (isUnlocked) {
-                      setSelectedIndex(index);
-                      if (index === 0) discoverAssessment();
-                      if (index === 1) trainAssessment();
-                      if (index === 2) excuteAssessment();
-                    }
-                  }}
+                  onClick={() => handleStepClick(index, isUnlocked)}
                   style={{
                     background:
                       selectedIndex === index
@@ -247,15 +315,7 @@ const Score = () => {
                   </div>
 
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Only allow click if unlocked
-                      if (isUnlocked) {
-                        if (index === 0) discoverAssessment();
-                        if (index === 1) trainAssessment();
-                        if (index === 2) excuteAssessment();
-                      }
-                    }}
+                    onClick={(e) => handleButtonClick(e, index, isUnlocked)}
                     className={`ml-auto w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold ${
                       isUnlocked
                         ? "bg-white text-black"
@@ -336,9 +396,14 @@ const Score = () => {
               Locked
             </h2>
             <p className='text-md mb-4 text-gray-300'>
-              To access your Train, please finish the first step of your journey
-              — "Reflection". It helps lay the foundation for everything that
-              follows.
+              To access your{" "}
+              {selectedIndex === 1
+                ? "Train"
+                : selectedIndex === 2
+                ? "Execute"
+                : ""}
+              , please finish the first step of your journey — "Reflection". It
+              helps lay the foundation for everything that follows.
             </p>
 
             <div className='mb-6'>
@@ -347,7 +412,7 @@ const Score = () => {
 
             <button
               onClick={() => setShowPopup(false)}
-              className='bg-white w-[390px] max-w-[80vw] h-[60px] text-black rounded-4xl'
+              className='bg-white text-lg font-medium w-[390px] max-w-[80vw] h-[60px] text-black rounded-4xl'
             >
               Got It
             </button>
@@ -408,102 +473,15 @@ const Score = () => {
               Set clear Execute to stay aligned and focused each day.
             </p>
 
-            <div
-              className={`mt-3 mb-6 relative w-max mx-auto
-                transition-transform  duration-500 ease-out
-                ${
-                  lockAnimate ? "scale-100 opacity-100" : "scale-75 opacity-0"
-                }`}
-            >
-              <svg
-                width='49'
-                height='59'
-                viewBox='0 0 49 59'
-                fill='none'
-                xmlns='http://www.w3.org/2000/svg'
-                className='relative z-10'
-              >
-                <path
-                  d='M24.2051 0C34.3468 0 42.7811 7.31933 44.5137 16.9629L32.5391 21.3535V20.6348C32.539 16.033 28.8069 12.3008 24.2051 12.3008C19.6033 12.3008 15.8711 16.033 15.8711 20.6348V36.1436H3.57031V20.6348C3.57034 9.2399 12.8102 2.52602e-05 24.2051 0ZM44.8398 36.1387H32.5391V27.21H44.8398V36.1387Z'
-                  fill='url(#paint0_linear_1174_1504)'
-                />
-                <foreignObject
-                  x='-18'
-                  y='8.71826'
-                  width='84.4099'
-                  height='67.7021'
-                >
-                  <div
-                    style={{
-                      backdropFilter: "blur(9px)",
-                      clipPath: "url(#bgblur_0_1174_1504_clip_path)",
-                      height: "100%",
-                      width: "100%",
-                    }}
-                  />
-                </foreignObject>
-                <path
-                  data-figma-bg-blur-radius='18'
-                  d='M5.18848 27.7183H43.2217C45.5346 27.7183 47.4102 29.5938 47.4102 31.9067V53.2319C47.4102 55.5449 45.5346 57.4204 43.2217 57.4204H5.18848C2.87551 57.4204 1 55.5449 1 53.2319V31.9067C1 29.5938 2.87551 27.7183 5.18848 27.7183Z'
-                  fill='url(#paint1_linear_1174_1504)'
-                  stroke='url(#paint2_linear_1174_1504)'
-                  strokeWidth='2'
-                />
-                <defs>
-                  <clipPath
-                    id='bgblur_0_1174_1504_clip_path'
-                    transform='translate(18 -8.71826)'
-                  >
-                    <path d='M5.18848 27.7183H43.2217C45.5346 27.7183 47.4102 29.5938 47.4102 31.9067V53.2319C47.4102 55.5449 45.5346 57.4204 43.2217 57.4204H5.18848C2.87551 57.4204 1 55.5449 1 53.2319V31.9067C1 29.5938 2.87551 27.7183 5.18848 27.7183Z' />
-                  </clipPath>
-                  <linearGradient
-                    id='paint0_linear_1174_1504'
-                    x1='-2.00797'
-                    y1='15.7099'
-                    x2='50.4181'
-                    y2='15.7099'
-                    gradientUnits='userSpaceOnUse'
-                  >
-                    <stop stopColor='#91F4FF' />
-                    <stop offset='0.5' stopColor='#D67EE2' />
-                    <stop offset='0.99' stopColor='#9820FF' />
-                  </linearGradient>
-                  <linearGradient
-                    id='paint1_linear_1174_1504'
-                    x1='2.73302'
-                    y1='56.6306'
-                    x2='28.5111'
-                    y2='17.2667'
-                    gradientUnits='userSpaceOnUse'
-                  >
-                    <stop stopColor='white' stopOpacity='0.2' />
-                    <stop offset='1' stopColor='white' stopOpacity='0.49' />
-                  </linearGradient>
-                  <linearGradient
-                    id='paint2_linear_1174_1504'
-                    x1='3.4172'
-                    y1='29.2116'
-                    x2='27.0758'
-                    y2='67.8401'
-                    gradientUnits='userSpaceOnUse'
-                  >
-                    <stop stopColor='white' />
-                    <stop offset='1' stopColor='white' stopOpacity='0' />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <span
-                className='absolute inset-0 rounded-lg
-                  bg-gradient-to-r from-[#91F4FF] via-[#D67EE2] to-[#9820FF]
-                  opacity-20 blur-[12px] pointer-events-none'
-              />
+            <div className='mb-6'>
+              <MorphingLock />
             </div>
 
             <button
               onClick={excuteAssessment}
               className='bg-white  font-medium py-4 px-9 text-black text-lg rounded-4xl w-full'
             >
-              Got To Execute
+              Go To Execute
             </button>
           </div>
         </div>

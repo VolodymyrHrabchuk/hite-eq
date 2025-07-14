@@ -16,7 +16,7 @@ const ExcutePage = () => {
   return (
     <div className='min-h-screen flex flex-col items-center justify-center w-full text-white'>
       {/* Стрелка назад */}
-      <div className='mb-15 -ml-[470px]'>
+      <div className='mb-15 -ml-[470px]' onClick={() => router.back()}>
         <Image src={Arrow} alt='Arrow' width={32} height={32} />
       </div>
 

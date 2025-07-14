@@ -5,6 +5,7 @@ import Arrow from "../../../public/arrow.svg";
 import TransitCard from "./TransitCard";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
+import { API_BASE } from "../lib/api";
 
 // Define an interface for better type safety and readability
 interface Question {
@@ -68,9 +69,7 @@ export default function Assessment() {
       setLoading(true);
       setError(null); // Clear previous errors
       try {
-        const response = await fetch(
-          "https://dashboard-athena.space/api/assessments/"
-        );
+        const response = await fetch(`${API_BASE}/assessments/`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -111,6 +110,15 @@ export default function Assessment() {
     fetchHITEQuestions();
   }, []);
 
+  const handleBack = () => {
+    if (selectedIndex > 0) {
+      const prev = selectedIndex - 1;
+      setSelectedIndex(prev);
+      setFillPercentage(Math.floor(((prev + 1) / questions.length) * 100));
+    } else {
+      router.back();
+    }
+  };
   // Centralized function to finalize assessment and navigate
   const finalizeAssessment = () => {
     if (typeof window !== "undefined") {
@@ -194,7 +202,8 @@ export default function Assessment() {
       : null;
 
     // --- Get user ID from localStorage ---
-    const userIdRaw = localStorage.getItem("userId");
+    const userIdRaw =
+      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
     const userId = userIdRaw ? parseInt(userIdRaw, 10) : 0;
 
     if (isNaN(userId) || userId === 0) {
@@ -205,25 +214,17 @@ export default function Assessment() {
     } else {
       try {
         const payload = {
-          question: currentQuestion.id,
-          answer: null, // HITE assessment uses common answers
-          common_answer: commonAnswerForApi,
-          user: userId,
+          question: currentQuestion.id, // даём именно ключ `question`
+          answer: null, // если нет текстового ответа
+          common_answer: commonAnswerForApi, // если true → одно из enum
+          user: userId, // и ключ `user`
         };
 
-        const response = await fetch(
-          "https://dashboard-athena.space/api/members-answers/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              // You might need an Authorization header here if your API is protected
-              // 'Authorization': `Bearer ${localStorage.getItem("authToken")}`,
-            },
-            body: JSON.stringify(payload),
-          }
-        );
+        const response = await fetch(`${API_BASE}/members-answers/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
         // Attempt to parse JSON response for detailed errors
         let responseData;
@@ -333,7 +334,10 @@ export default function Assessment() {
   return (
     <div className='absolute inset-0 flex flex-col items-center text-white mt-10 px-6'>
       <div className='flex flex-col items-start'>
-        <h1 className='mt-18 mb-10 flex items-start font-bold text-[24px]'>
+        <h1
+          className='mt-18 mb-10 flex items-start font-bold text-[24px] '
+          onClick={handleBack}
+        >
           <Image
             src={Arrow}
             alt='Arrow'

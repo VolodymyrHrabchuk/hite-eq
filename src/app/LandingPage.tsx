@@ -24,7 +24,7 @@ const LandingPage = () => {
           alt='Landing'
           width={500}
           height={500}
-          className='absolute inset-0 w-full h-full object-cover -z-10 overflow-hidden rounded-[28px] '
+          className='absolute inset-0 w-full h-full object-cover -z-10 overflow-hidden rounded-[28px] opacity-20'
         />
         <Image width={442} height={440} src={Landing} alt='Landing' />
 

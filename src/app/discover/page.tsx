@@ -53,6 +53,13 @@ export default function Assessment() {
     "Strongly Agree",
   ];
 
+  const [scores, setScores] = useState<Record<string, number>>({
+    composure: 0,
+    confidence: 0,
+    competitiveness: 0,
+    commitment: 0,
+  });
+
   // Map DISPLAY TEXT to the API-EXPECTED VALUE
   const commonAnswerMap: Record<string, string> = {
     "Strongly disagree": "strong_disagree",
@@ -60,6 +67,16 @@ export default function Assessment() {
     Neutral: "neutral",
     Agree: "agree",
     "Strongly Agree": "strong_agree",
+  };
+
+  const handleBack = () => {
+    if (selectedIndex > 0) {
+      const prev = selectedIndex - 1;
+      setSelectedIndex(prev);
+      setFillPercentage(Math.floor(((prev + 1) / questions.length) * 100));
+    } else {
+      router.back();
+    }
   };
 
   useEffect(() => {
@@ -226,9 +243,13 @@ export default function Assessment() {
       setSelectedIndex((prev) => prev + 1);
       setInputValue("");
     } else {
+      // сохраняем свежие Discover-скоры
+      localStorage.setItem("discoverScores", JSON.stringify(scores));
+      // ставим флаг, что нужно показать попап про Train
       localStorage.setItem("showTrainPopup", "true");
+      // апгрейдим уровень
       localStorage.setItem("level", "2");
-
+      // переходим на Score
       router.push(ROUTES.SCORE);
     }
   };
@@ -253,7 +274,17 @@ export default function Assessment() {
       );
       return;
     }
-
+    // 1) вычисляем очки: Neutral=1, Agree/StrongAgree=2, Disagree/StrongDisagree=0
+    const choiceIndex = commonAnswers.indexOf(optionText);
+    let pts = choiceIndex === 2 ? 1 : choiceIndex >= 3 ? 2 : 0;
+    // 2) компенсируем reverse_scoring
+    if (currentQuestion.reverse_scoring) pts = 2 - pts;
+    // 3) обновляем локальный стейт
+    setScores((prev) => ({
+      ...prev,
+      [currentQuestion.score_type]:
+        (prev[currentQuestion.score_type] || 0) + pts,
+    }));
     // For common answer questions, send 'common_answer'
     const payload: AnswerPayload = {
       question: currentQuestion.id,
@@ -334,7 +365,10 @@ export default function Assessment() {
   return (
     <div className='absolute inset-0 flex flex-col items-center text-white mt-10 px-6'>
       <div className='flex flex-col items-start'>
-        <h1 className='mt-18 mb-10 flex items-start font-bold text-[24px]'>
+        <h1
+          className='mt-18 mb-10 flex items-start font-bold text-[24px]'
+          onClick={handleBack}
+        >
           <Image
             src={Arrow}
             alt='Arrow'

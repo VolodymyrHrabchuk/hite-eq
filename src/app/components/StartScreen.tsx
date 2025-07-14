@@ -25,7 +25,7 @@ export default function StartScreen({ onStart }: StartScreenProps) {
           alt='Landing'
           width={500}
           height={500}
-          className='absolute inset-0 w-full h-full object-cover -z-10 overflow-hidden rounded-[28px] '
+          className='absolute inset-0 w-full h-full object-cover -z-10 overflow-hidden rounded-[28px] opacity-20'
         />
         <Image
           width={192}

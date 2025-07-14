@@ -91,6 +91,19 @@ export default function TrainComponent() {
     }
   };
 
+  const handleBack = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex((i) => i - 1);
+      // сбрасываем все, если нужно
+      setVideoPlayed(false);
+      setInputValue("");
+      setTimeLeft(60);
+      setTimerActive(false);
+    } else {
+      router.back();
+    }
+  };
+
   const goNext = () => {
     if (currentCardIndex < assessmentData.length - 1) {
       setCurrentCardIndex((i) => i + 1);
@@ -145,7 +158,7 @@ export default function TrainComponent() {
           <div className='h-screen flex flex-col items-center text-white mt-10 px-4 sm:px-6 w-full max-w-[600px] mx-auto touch-none'>
             {/* Header */}
             <div className='flex flex-col items-start w-full'>
-              <h1 className='mt-18 mb-6 flex items-start'>
+              <h1 className='mt-18 mb-6 flex items-start' onClick={handleBack}>
                 <Image
                   src={Arrow}
                   alt='Arrow'

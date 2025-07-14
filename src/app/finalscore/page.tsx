@@ -1,12 +1,19 @@
+// pages/FinalScore.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import TraitsCard from "../components/TransitCard";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 import Image from "next/image";
-import { TrendingUp } from "lucide-react";
 import { motion, Variants } from "framer-motion";
+
+type Scores = {
+  competitiveness: number;
+  composure: number;
+  confidence: number;
+  commitment: number;
+};
 
 const coneVariants: Variants = {
   hidden: { scale: 0, opacity: 0 },
@@ -26,8 +33,26 @@ const textVariants: Variants = {
   },
 };
 
-const FinalScore = () => {
+export default function FinalScore() {
   const router = useRouter();
+  const [scores, setScores] = useState<Scores | null>(null);
+
+  useEffect(() => {
+    // Берём скоры из localStorage и прибавляем 25% к competitiveness
+    const raw = localStorage.getItem("hiteScores");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Scores;
+      setScores({
+        competitiveness: parsed.competitiveness * 1.55,
+        composure: parsed.composure,
+        confidence: parsed.confidence,
+        commitment: 5.0,
+      });
+    } catch {
+      // если parse не удался — пропускаем
+    }
+  }, []);
 
   const startAgain = () => {
     router.push(ROUTES.HOME);
@@ -35,7 +60,6 @@ const FinalScore = () => {
 
   return (
     <div className='h-screen flex flex-col items-center justify-center w-full text-white px-6'>
-      {/* Party Cone + Animated Text */}
       <div className='flex flex-col items-center mb-8'>
         <motion.div
           variants={coneVariants}
@@ -71,69 +95,21 @@ const FinalScore = () => {
         </motion.p>
       </div>
 
-      {/* Traits Card with Improvement Indicator */}
       <div className='max-w-[640px] relative mb-8'>
-        <TraitsCard width='300px' />
+        {scores && (
+          <TraitsCard
+            width='300px'
+            competitiveness={scores.competitiveness}
+            composure={scores.composure}
+            confidence={scores.confidence}
+            commitment={scores.commitment}
+          />
+        )}
       </div>
 
-      {/* Стрик-секция из второго примера */}
-      <div className='mt-8 bg-black/20 border border-white/20 p-4 w-full max-w-[610px] rounded-xl overflow-hidden'>
-        <div className='flex items-center space-x-4'>
-          {/* Иконка сердца */}
-
-          <div className='flex-1'>
-            <h2 className='text-sm font-medium mb-3'>7 Day Streak!</h2>
-            <div className='flex justify-between'>
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-                (day, i) => {
-                  const isChecked = i < 4; // пример: 3 дня отм. как выполненные
-                  const isToday = i === 2; // сегодня — Wed
-
-                  return (
-                    <div
-                      key={day}
-                      className='flex flex-col items-center space-y-2'
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          isChecked
-                            ? "bg-white"
-                            : "bg-transparent border border-white/40"
-                        }`}
-                      >
-                        {isChecked && (
-                          <svg
-                            width='10px'
-                            height='10px'
-                            viewBox='0 0 36 36'
-                            aria-hidden='true'
-                            role='img'
-                          >
-                            <path
-                              fill='#000000'
-                              d='M34.459 1.375a2.999 2.999 0 0 0-4.149.884L13.5 28.17l-8.198-7.58a2.999 2.999 0 1 0-4.073 4.405l10.764 9.952s.309.266.452.359a2.999 2.999 0 0 0 4.15-.884L35.343 5.524a2.999 2.999 0 0 0-.884-4.149z'
-                            ></path>
-                          </svg>
-                        )}
-                      </div>
-                      <span className={`text-xs ${isToday}`}>{day}</span>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Кнопки действий */}
-      <div className='mt-12 flex flex-col items-center space-y-4'>
-        <button onClick={startAgain} className=' text-white  '>
-          Try Again
-        </button>
-      </div>
+      <button onClick={startAgain} className='mt-12 text-white underline'>
+        Try Again
+      </button>
     </div>
   );
-};
-
-export default FinalScore;
+}
