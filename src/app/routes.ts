@@ -10,5 +10,6 @@ export const ROUTES = {
   EXCUTING: "/excuting",
   EXECUTEPLAN: "/executeplan",
   AFFIRMATION: "/affirmation",
-  FINAlSCORE:"/finalscore"
+  FINAlSCORE:"/finalscore",
+  CompletedPlan: "/completed-plan",
 };

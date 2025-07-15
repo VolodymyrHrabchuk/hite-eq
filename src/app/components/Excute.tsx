@@ -99,6 +99,28 @@ export default function ExcuteComponent() {
   };
 
   const handleCardNavigation = () => {
+    // если видео открыто — сначала его закрываем
+    if (showVideoPlayer) {
+      setShowVideoPlayer(false);
+      setTimeout(() => {
+        // потом переходим дальше
+        if (currentCardIndex < assessmentData.length - 1) {
+          setAnimating(true);
+          setTimeout(() => {
+            setCurrentCardIndex((prev) => prev + 1);
+            setVideoPlayed(false);
+            setInputValue("");
+            setAnimating(false);
+          }, 300);
+        } else {
+          localStorage.setItem("showExcutePopup", "true");
+          router.push(ROUTES.SCORE);
+        }
+      }, 100); // даем 100мс чтобы пропал плеер
+      return;
+    }
+
+    // если видео не открыто — обычное поведение
     if (currentCardIndex < assessmentData.length - 1) {
       setAnimating(true);
       setTimeout(() => {
@@ -120,11 +142,11 @@ export default function ExcuteComponent() {
       const vid = videoRef.current;
       if (!vid) return;
       // iOS Safari
-      if ((vid as any).webkitEnterFullScreen) {
-        (vid as any).webkitEnterFullScreen();
-      } else if (vid.requestFullscreen) {
-        vid.requestFullscreen();
-      }
+      // if ((vid as any).webkitEnterFullScreen) {
+      //   (vid as any).webkitEnterFullScreen();
+      // } else if (vid.requestFullscreen) {
+      //   vid.requestFullscreen();
+      // }
       vid.play();
     }, 50);
   };
@@ -299,7 +321,7 @@ export default function ExcuteComponent() {
               {/* Кнопка закрытия */}
               <button
                 onClick={handleVideoClose}
-                className='absolute top-2 right-2 z-10 text-white text-2xl bg-black bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center'
+                className='absolute top-2 right-2 z-50 text-white text-2xl bg-black/30 bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center'
               >
                 &times;
               </button>

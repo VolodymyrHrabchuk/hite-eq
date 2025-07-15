@@ -4,8 +4,9 @@ import { getUserScores } from "../lib/api";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 import { useEffect, useState } from "react";
-import First from "../../../public/first.svg";
-import Second from "../../../public/second.svg";
+import First from "../../../public/first.png";
+import Second from "../../../public/second.png";
+import Third from "../../../public/soccer.jpg";
 
 import Image from "next/image";
 import Discover from "../../../public/discover.svg";
@@ -169,7 +170,7 @@ const Score = () => {
           showArrow={false}
         />
 
-        <div className='mt-5 bg-black/20 border border-white/20 p-4 w-157 rounded-xl overflow-hidden'>
+        <div className='mt-5 bg-white/20 border border-white/20 p-4 w-157 rounded-xl overflow-hidden'>
           <div className='flex items-center space-x-4'>
             <div className='border-white/30 flex items-center justify-center w-10 h-10 border rounded-full'>
               <svg
@@ -234,7 +235,7 @@ const Score = () => {
           </div>
         </div>
 
-        <div className='mt-2 bg-black/20 border border-white/20 p-3 w-157 rounded-xl flex items-center space-x-1'>
+        <div className='mt-2 bg-white/20 border border-white/20 p-2.5 w-157 rounded-xl flex items-center space-x-1'>
           <div className='flex items-center justify-center space-x-4 w-12 h-12 border border-white/30 rounded-full'>
             <Image src='/bot.svg' alt='Logo' width={26} height={22} />
           </div>
@@ -283,7 +284,7 @@ const Score = () => {
                         : "rgba(255, 255, 255, 0.04)",
                   }}
                 >
-                  <div className='w-12 h-12 bg-black-600 border border-gray-600 rounded-full flex items-center justify-center'>
+                  <div className='w-12 h-12 bg-black-600 border border-white/20 rounded-full flex items-center justify-center'>
                     <Image className='text-white' alt='' src={step.image} />
                   </div>
 
@@ -358,21 +359,27 @@ const Score = () => {
 
           {/* Scrollable image list */}
           <div className='flex space-x-4 mt-5 overflow-x-auto pb-4 scrollbar-hide'>
-            <Image
-              src={First}
-              alt='Skill 1'
-              className='w-[200px] h-[180px] object-cover border border-gray-600 rounded-lg flex-shrink-0'
-            />
-            <Image
-              src={Second}
-              alt='Skill 2'
-              className='w-[200px] h-[180px] object-cover border border-gray-600 rounded-lg flex-shrink-0'
-            />
-            <Image
-              src={Second}
-              alt='Skill 3'
-              className='w-[200px] h-[180px] object-cover border border-gray-600 rounded-lg flex-shrink-0'
-            />
+            <div className='border border-white/20 rounded-2xl p-2.5 bg-black/20'>
+              <Image
+                src={First}
+                alt='Skill 1'
+                className='w-[200px] h-[180px] object-cover  flex-shrink-0 rounded-lg'
+              />
+            </div>
+            <div className='border border-white/20 rounded-2xl p-2.5 bg-black/20'>
+              <Image
+                src={Second}
+                alt='Skill 2'
+                className='w-[200px] h-[180px] object-cover  flex-shrink-0 rounded-lg'
+              />
+            </div>
+            <div className='border border-white/20 rounded-2xl p-2.5 bg-black/20'>
+              <Image
+                src={Third}
+                alt='Skill 3'
+                className='w-[200px] h-[180px] object-cover  flex-shrink-0 rounded-lg'
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -12,21 +12,66 @@ const DEFAULT_TEAM_ID = 1;
 const Dashboard = () => {
   const router = useRouter();
 
-  // Форма
+  // Поля формы
   const [name, setName] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [phoneNumberInput, setPhoneNumberInput] = useState("");
 
-  // Стейт загрузки и ошибок
-  const [loading, setLoading] = useState(false);
+  // Ошибки валидации полей
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+
+  // Ошибка от API
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const validate = () => {
+    const errors: { name?: string; email?: string; phone?: string } = {};
+
+    // Валидация имени
+    if (!name.trim()) {
+      errors.name = "Please enter your name";
+    } else if (name.trim().length < 2) {
+      errors.name = "The name must be at least 2 characters long.";
+    }
+
+    // Валидация email
+    if (!emailInput.trim()) {
+      errors.email = "Please enter your email";
+    } else {
+      const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+      if (!emailRegex.test(emailInput)) {
+        errors.email = "Invalid email format";
+      }
+    }
+
+    // Валидация телефона (E.164: + и 10–15 цифр)
+    if (!phoneNumberInput.trim()) {
+      errors.phone = "Please enter your phone number";
+    } else {
+      const phoneRegex = /^\+\d{10,15}$/;
+      if (!phoneRegex.test(phoneNumberInput)) {
+        errors.phone = "Incorrect number format. Use “+” and 10–15 digits.";
+      }
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
+    if (!validate()) {
+      return;
+    }
+
+    setLoading(true);
     try {
       const payload = {
         email: emailInput,
@@ -39,7 +84,6 @@ const Dashboard = () => {
       const responseData = await createUser(payload);
       if (responseData.id) {
         localStorage.setItem("userId", responseData.id.toString());
-        console.log("User ID saved to localStorage:", responseData.id);
       }
 
       router.push(ROUTES.Assessments);
@@ -56,7 +100,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className='absolute inset-0  flex flex-col items-center text-white mt-30'>
+    <div className='absolute inset-0 flex flex-col items-center text-white mt-30'>
       <Image width={192} height={48} src={Logo} alt='Logo' quality={100} />
 
       <h1 className='mt-18 mb-10 text-center text-[32px] font-bold'>
@@ -64,6 +108,7 @@ const Dashboard = () => {
       </h1>
 
       <form className='space-y-8' onSubmit={handleSignup}>
+        {/* Name */}
         <div>
           <label htmlFor='name' className='block text-sm mb-2'>
             Name
@@ -73,15 +118,24 @@ const Dashboard = () => {
             type='text'
             placeholder='Enter your name'
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (fieldErrors.name) {
+                setFieldErrors({ ...fieldErrors, name: undefined });
+              }
+            }}
             className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
+          {fieldErrors.name && (
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.name}</p>
+          )}
         </div>
 
+        {/* School Name */}
         <div>
           <label htmlFor='schoolName' className='block text-sm mb-2'>
             School Name
@@ -100,6 +154,7 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Email */}
         <div>
           <label htmlFor='email' className='block text-sm mb-2'>
             Email
@@ -109,15 +164,24 @@ const Dashboard = () => {
             type='email'
             placeholder='Enter your email'
             value={emailInput}
-            onChange={(e) => setEmailInput(e.target.value)}
+            onChange={(e) => {
+              setEmailInput(e.target.value);
+              if (fieldErrors.email) {
+                setFieldErrors({ ...fieldErrors, email: undefined });
+              }
+            }}
             className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
+          {fieldErrors.email && (
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.email}</p>
+          )}
         </div>
 
+        {/* Phone Number */}
         <div>
           <label htmlFor='phoneNumber' className='block text-sm mb-2'>
             Phone Number
@@ -125,12 +189,16 @@ const Dashboard = () => {
           <input
             id='phoneNumber'
             type='tel'
-            placeholder='+123456789'
+            placeholder='+12345678901'
             value={phoneNumberInput}
             onChange={(e) => {
-              let v = e.target.value.replace(/[^\d]/g, "");
-              if (!v.startsWith("+")) v = `+${v}`;
-              setPhoneNumberInput(v);
+              // Сохраняем только цифры, добавляя + в начале
+              let digits = e.target.value.replace(/[^\d]/g, "");
+              const formatted = "+" + digits;
+              setPhoneNumberInput(formatted);
+              if (fieldErrors.phone) {
+                setFieldErrors({ ...fieldErrors, phone: undefined });
+              }
             }}
             className='w-[480px] px-6 py-[17.5px] rounded-full bg-transparent border border-white text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white'
             style={{
@@ -138,8 +206,12 @@ const Dashboard = () => {
               border: "1px solid rgba(255,255,255,0.3)",
             }}
           />
+          {fieldErrors.phone && (
+            <p className='text-red-500 text-sm mt-1'>{fieldErrors.phone}</p>
+          )}
         </div>
 
+        {/* API Error */}
         {error && <p className='text-red-500 text-sm text-center'>{error}</p>}
 
         <button

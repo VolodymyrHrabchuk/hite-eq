@@ -36,7 +36,21 @@ const textVariants: Variants = {
 export default function FinalScore() {
   const router = useRouter();
   const [scores, setScores] = useState<Scores | null>(null);
-
+  const goNext = () => {
+    if (scores) {
+      // сохраняем обновлённые скоры в localStorage
+      localStorage.setItem(
+        "hiteScores",
+        JSON.stringify({
+          competitiveness: scores.competitiveness,
+          composure: scores.composure,
+          confidence: scores.confidence,
+          commitment: scores.commitment,
+        })
+      );
+    }
+    router.push(ROUTES.CompletedPlan);
+  };
   useEffect(() => {
     // Берём скоры из localStorage и прибавляем 25% к competitiveness
     const raw = localStorage.getItem("hiteScores");
@@ -107,9 +121,15 @@ export default function FinalScore() {
         )}
       </div>
 
-      <button onClick={startAgain} className='mt-12 text-white underline'>
-        Try Again
-      </button>
+      <motion.button
+        onClick={goNext}
+        className='mt-12 px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition'
+        variants={textVariants}
+        initial='hidden'
+        animate='visible'
+      >
+        Next →
+      </motion.button>
     </div>
   );
 }
