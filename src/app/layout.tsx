@@ -28,10 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
-      <body className={`${dmSans.className} `}>
-        <div className='relative  h-screen overflow-hidden'>
-          {/* Background image with lower z-index */}
+    <html lang='en' className='h-full'>
+      <body className={`${dmSans.className} min-h-full`}>
+        <div className='relative min-h-screen'>
+          {/* Background image that grows with content */}
           <Image
             src={MainImage}
             alt='Background'
@@ -39,9 +39,13 @@ export default function RootLayout({
             className='object-cover z-0'
             quality={100}
             priority
+            style={{ zIndex: 0 }}
           />
 
-          <div className='relative z-10'>{children}</div>
+          {/* Content wrapper with scroll */}
+          <div className='relative z-10 min-h-screen overflow-y-auto'>
+            {children}
+          </div>
         </div>
       </body>
     </html>

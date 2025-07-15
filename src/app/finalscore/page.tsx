@@ -44,7 +44,7 @@ export default function FinalScore() {
     try {
       const parsed = JSON.parse(raw) as Scores;
       setScores({
-        competitiveness: parsed.competitiveness * 1.55,
+        competitiveness: parsed.competitiveness * 1.25,
         composure: parsed.composure,
         confidence: parsed.confidence,
         commitment: 5.0,

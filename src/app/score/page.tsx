@@ -156,7 +156,7 @@ const Score = () => {
   }, []);
 
   return (
-    <div className='text-white mt-15 px-4 sm:px-0'>
+    <div className='text-white mt-15 px-4 sm:px-0 '>
       <div className='max-w-[640px] mx-auto'>
         <h1 className='text-[28px] font-bold mb-8 text-start'>Your Result</h1>
 
