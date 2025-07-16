@@ -82,11 +82,16 @@ const Dashboard = () => {
 
     setLoading(true);
     try {
+      // Преобразуем "(123) 456-7890" → "1234567890"
+      const digits = phoneNumberInput.replace(/\D/g, "");
+      // Если 10 цифр — добавляем +1, иначе просто +<числа>
+      const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+
       const payload = {
         email: emailInput,
         first_name: name,
         last_name: schoolName,
-        phone_number: phoneNumberInput,
+        phone_number: e164, // ← именно E.164
         team: DEFAULT_TEAM_ID,
       };
 
@@ -94,13 +99,15 @@ const Dashboard = () => {
       if (responseData.id) {
         localStorage.setItem("userId", responseData.id.toString());
       }
-
       router.push(ROUTES.Assessments);
     } catch (err: any) {
       console.error(err);
+      // Раскрываем реальный текст ошибки, если он есть
       const msg =
-        err.detail ||
-        (typeof err === "string" ? err : err.message) ||
+        err.response?.data?.detail ??
+        err.response?.data?.message ??
+        err.detail ??
+        (typeof err === "string" ? err : err.message) ??
         "Unexpected error";
       setError(msg);
     } finally {
