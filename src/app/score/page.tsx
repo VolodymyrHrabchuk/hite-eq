@@ -27,7 +27,7 @@ const raleway = Raleway({
 });
 const Score = () => {
   const router = useRouter();
-  const [showTour, setShowTour] = useState(true);
+  const [showTour, setShowTour] = useState(false);
   const [showTrainPopup, setShowTrainPopup] = useState(false);
   const [showExcutePopup, setShowExcutePopup] = useState(false);
   // const [unlockedLevel, setUnlockedLevel] = useState<number>(0);
@@ -40,6 +40,19 @@ const Score = () => {
   const [confidence, setConfidence] = useState(0);
   const [commitment, setCommitment] = useState(0);
   const [unlockedLevel, setUnlockedLevel] = useState(0);
+
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem("hasSeenTour");
+    if (!hasSeenTour) {
+      setShowTour(true);
+    }
+  }, []);
+
+  const handleTourFinish = () => {
+    localStorage.setItem("hasSeenTour", "true");
+    setShowTour(false);
+  };
+
   useEffect(() => {
     const shouldShow = localStorage.getItem("showTrainPopup") === "true";
     if (shouldShow) {
@@ -178,8 +191,8 @@ const Score = () => {
 
   return (
     <>
-      {showTour && (
-        <TourGuide steps={walkSteps} onFinish={() => setShowTour(false)} />
+      {!showTrainPopup && !showExcutePopup && showTour && (
+        <TourGuide steps={walkSteps} onFinish={handleTourFinish} />
       )}
 
       <div className='text-white mt-15 px-4 sm:px-0 '>
