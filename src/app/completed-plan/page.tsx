@@ -59,7 +59,7 @@ export default function CompletedPlan() {
           />
 
           {/* 7 Day Streak */}
-          <div className='mt-5 bg-white/5 border border-white/20 p-4 rounded-xl '>
+          <div className='mt-5 bg-black/20 border border-white/20 p-4 rounded-xl '>
             <div className='flex items-center space-x-4'>
               <div className='border-white/30 flex items-center justify-center w-10 h-10 border rounded-full'>
                 {/* иконка сердца */}
@@ -123,7 +123,7 @@ export default function CompletedPlan() {
           </div>
 
           {/* CoachBot */}
-          <div className='mt-6 bg-white/5 border border-white/20 p-2.5 rounded-xl flex items-center space-x-3'>
+          <div className='mt-6 bg-black/20 border border-white/20 p-2.5 rounded-xl flex items-center space-x-3'>
             <div className='w-12 h-12 border border-white/30 rounded-full flex items-center justify-center'>
               <Image src='/bot.svg' alt='Bot' width={26} height={22} />
             </div>

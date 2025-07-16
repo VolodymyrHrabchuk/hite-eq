@@ -262,78 +262,87 @@ export default function ExcuteComponent() {
           </div>
 
           {/* Видео-иконка на второй карточке */}
-          {currentCardIndex === 1 && !showVideoPlayer && (
-            <div className='flex justify-center mb-4 relative'>
-              <svg
-                className='absolute inset-0 m-auto w-[81px] h-[81px] pointer-events-none'
-                width='81'
-                height='81'
-                viewBox='0 0 81 81'
-                fill='none'
-                xmlns='http://www.w3.org/2000/svg'
-              >
-                <defs>
-                  <clipPath id='bgblur_0_868_20623_clip_path'>
-                    <circle cx='40.2793' cy='40.6758' r='40' />
-                  </clipPath>
-                </defs>
-
-                <foreignObject
-                  x='-6.32041'
-                  y='-5.92393'
-                  width='93.1994'
-                  height='93.1994'
-                >
+          {/* — Video Block Replace Here — */}
+          <div className='relative w-full max-w-[480px] mx-auto mb-8'>
+            {currentCardIndex === 1 && (
+              <>
+                {!showVideoPlayer ? (
                   <div
-                    style={{
-                      backdropFilter: "blur(3.3px)",
-                      WebkitBackdropFilter: "blur(3.3px)",
-                      clipPath: "url(#bgblur_0_868_20623_clip_path)",
-                      height: "100%",
-                      width: "100%",
-                    }}
-                  />
-                </foreignObject>
+                    className='relative w-full aspect-square rounded-2xl overflow-hidden cursor-pointer'
+                    onClick={handleVideoPlay}
+                  >
+                    {/* 1) SVG-оверлей с размытым фоном */}
+                    <svg
+                      className='absolute inset-0 m-auto w-[81px] h-[81px] pointer-events-none z-10'
+                      width='81'
+                      height='81'
+                      viewBox='0 0 81 81'
+                      fill='none'
+                      xmlns='http://www.w3.org/2000/svg'
+                    >
+                      <defs>
+                        <clipPath id='bgblur_clip'>
+                          <circle cx='40.5' cy='40.5' r='40' />
+                        </clipPath>
+                      </defs>
+                      <foreignObject
+                        x='0'
+                        y='0'
+                        width='81'
+                        height='81'
+                        clipPath='url(#bgblur_clip)'
+                      >
+                        <div
+                          style={{
+                            backdropFilter: "blur(3.3px)",
+                            WebkitBackdropFilter: "blur(3.3px)",
+                            width: "100%",
+                            height: "100%",
+                          }}
+                        />
+                      </foreignObject>
+                      <g opacity='0.5'>
+                        <circle cx='40.5' cy='40.5' r='40' fill='white' />
+                        <circle cx='40.5' cy='40.5' r='40' stroke='white' />
+                      </g>
+                      <path
+                        d='M59.525 39.571C60.625 40.206 60.625 41.794 59.525 42.429L31.475 58.624C30.375 59.259 29 58.465 29 57.195V24.805C29 23.535 30.375 22.741 31.475 23.376L59.525 39.571Z'
+                        fill='white'
+                      />
+                    </svg>
 
-                <g opacity='0.5' data-figma-bg-blur-radius='6.59971'>
-                  <circle cx='40.2793' cy='40.6758' r='40' fill='white' />
-                  <circle cx='40.2793' cy='40.6758' r='40' stroke='white' />
-                </g>
+                    {/* 2) Постер или статичная картинка — опционально */}
+                    <Image
+                      src='/videoicon.png'
+                      alt='Video preview'
+                      fill
+                      style={{ objectFit: "cover" }}
+                    />
+                  </div>
+                ) : (
+                  <div className='relative w-full aspect-video rounded-lg overflow-hidden'>
+                    {/* Само видео */}
+                    <video
+                      ref={videoRef}
+                      src={videoUrl}
+                      controls
+                      onEnded={handleVideoClose}
+                      className='w-full h-full object-cover'
+                    />
+                    {/* Кнопка закрыть */}
+                    <button
+                      onClick={handleVideoClose}
+                      className='absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-black/50 rounded-full text-white text-xl'
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
-                <path
-                  d='M59.5251 39.5711C60.6251 40.2062 60.6251 41.7938 59.5251 42.4289L31.4749 58.6237C30.3749 59.2587 29 58.4649 29 57.1948V24.8052C29 23.5351 30.3749 22.7413 31.4749 23.3763L59.5251 39.5711Z'
-                  fill='white'
-                />
-              </svg>
-              <Image
-                src={VideoIcon}
-                alt='Play video'
-                onClick={handleVideoPlay}
-                className='cursor-pointer'
-              />
-            </div>
-          )}
-
-          {showVideoPlayer && (
-            // этот контейнер нужен только для safe-area inset,
-            // сам <video> выведет браузерный UI
-            <div className='relative w-full mb-8'>
-              {/* Кнопка закрытия */}
-              <button
-                onClick={handleVideoClose}
-                className='absolute top-2 right-2 z-50 text-white text-2xl bg-black/30 bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center'
-              >
-                &times;
-              </button>
-              <video
-                ref={videoRef}
-                src={videoUrl}
-                controls
-                onEnded={handleVideoClose}
-                className='w-full h-auto rounded-lg'
-              />
-            </div>
-          )}
+          
 
           {/* Ввод на третьей карточке */}
           {currentCardIndex === 2 && (
