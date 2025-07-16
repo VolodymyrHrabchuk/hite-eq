@@ -9,6 +9,17 @@ import { ROUTES } from "../routes";
 
 const DEFAULT_TEAM_ID = 1;
 
+// Форматирование в (XXX) XXX-XXXX
+const formatUSPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  const len = digits.length;
+
+  if (len === 0) return "";
+  if (len < 4) return `(${digits}`;
+  if (len < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
+
 const Dashboard = () => {
   const router = useRouter();
 
@@ -18,28 +29,28 @@ const Dashboard = () => {
   const [emailInput, setEmailInput] = useState("");
   const [phoneNumberInput, setPhoneNumberInput] = useState("");
 
-  // Ошибки валидации полей
+  // Ошибки валидации
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
   }>({});
 
-  // Ошибка от API
+  // Ошибка от API и загрузка
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const validate = () => {
     const errors: { name?: string; email?: string; phone?: string } = {};
 
-    // Валидация имени
+    // Имя
     if (!name.trim()) {
       errors.name = "Please enter your name";
     } else if (name.trim().length < 2) {
       errors.name = "The name must be at least 2 characters long.";
     }
 
-    // Валидация email
+    // Email
     if (!emailInput.trim()) {
       errors.email = "Please enter your email";
     } else {
@@ -49,13 +60,13 @@ const Dashboard = () => {
       }
     }
 
-    // Валидация телефона (E.164: + и 10–15 цифр)
+    // Телефон (XXX) XXX-XXXX
     if (!phoneNumberInput.trim()) {
       errors.phone = "Please enter your phone number";
     } else {
-      const phoneRegex = /^\+\d{10,15}$/;
+      const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/;
       if (!phoneRegex.test(phoneNumberInput)) {
-        errors.phone = "Incorrect number format. Use “+” and 10–15 digits.";
+        errors.phone = "Incorrect format. Use (###) ###-####.";
       }
     }
 
@@ -67,9 +78,7 @@ const Dashboard = () => {
     e.preventDefault();
     setError(null);
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     try {
@@ -189,12 +198,10 @@ const Dashboard = () => {
           <input
             id='phoneNumber'
             type='tel'
-            placeholder='+12345678901'
+            placeholder='(123) 456-7890'
             value={phoneNumberInput}
             onChange={(e) => {
-              // Сохраняем только цифры, добавляя + в начале
-              let digits = e.target.value.replace(/[^\d]/g, "");
-              const formatted = "+" + digits;
+              const formatted = formatUSPhone(e.target.value);
               setPhoneNumberInput(formatted);
               if (fieldErrors.phone) {
                 setFieldErrors({ ...fieldErrors, phone: undefined });

@@ -304,24 +304,16 @@ export default function TrainComponent() {
                         fill='url(#timerGradient)'
                         animate={
                           timerActive && timeLeft > 0
-                            ? {
-                                scale: [0.85, 1.15, 1.15, 0.85, 0.85],
-                                opacity: [0.4, 0.8, 0.8, 0.4, 0.4],
-                              }
-                            : {
-                                scale: 1,
-                                opacity: 0,
-                              }
+                            ? { scale: [0.2, 1] }
+                            : { scale: 1 }
                         }
                         transition={{
-                          duration: 6,
+                          duration: 5,
                           ease: "easeInOut",
                           repeat: timerActive && timeLeft > 0 ? Infinity : 0,
-                          times: [0, 0.25, 0.5, 0.75, 1], // Задержки в крайних точках
+                          repeatType: "reverse",
                         }}
-                        style={{
-                          transformOrigin: "50% 50%",
-                        }}
+                        style={{ transformOrigin: "50% 50%" }}
                       />
                       {/* 1) Белый фон */}
                       <circle
