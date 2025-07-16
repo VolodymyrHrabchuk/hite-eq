@@ -16,9 +16,13 @@ interface TourGuideProps {
 }
 
 export const TourGuide: React.FC<TourGuideProps> = ({ steps, onFinish }) => {
+  const [mounted, setMounted] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const tooltipRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setMounted(true); // <- ждем клиента
+  }, []);
 
   // Жёстко прописанные позиции для каждого шага:
   const manualPositions = [
