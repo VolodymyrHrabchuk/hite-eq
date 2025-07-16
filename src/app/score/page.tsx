@@ -22,7 +22,7 @@ import { Step } from "../components/TourGuide";
 const raleway = Raleway({
   subsets: ["latin"],
   weight: ["400", "500", "700"], // добавь нужные веса
-  variable: "--font-raleway", // опционально, если хочешь использовать CSS переменную
+  variable: "--fontRaleway", // опционально, если хочешь использовать CSS переменную
   display: "swap",
 });
 const Score = () => {
@@ -331,11 +331,11 @@ const Score = () => {
                           <path
                             d='M13.6663 7.49967C13.6663 11.1816 10.6816 14.1663 6.99967 14.1663C3.31778 14.1663 0.333008 11.1816 0.333008 7.49967C0.333008 3.81778 3.31778 0.833008 6.99967 0.833008C10.6816 0.833008 13.6663 3.81778 13.6663 7.49967Z'
                             fill='white'
-                            fill-opacity='0.8'
+                            fillOpacity='0.8'
                           />
                           <path
-                            fill-rule='evenodd'
-                            clip-rule='evenodd'
+                            fillRule='evenodd'
+                            clipRule='evenodd'
                             d='M6.99967 4.33301C7.27582 4.33301 7.49967 4.55687 7.49967 4.83301V7.29257L9.01989 8.81279C9.21516 9.00805 9.21516 9.32463 9.01989 9.51989C8.82463 9.71516 8.50805 9.71516 8.31279 9.51989L6.64612 7.85323C6.55235 7.75946 6.49967 7.63228 6.49967 7.49967V4.83301C6.49967 4.55687 6.72353 4.33301 6.99967 4.33301Z'
                             fill='#060502'
                           />
@@ -362,8 +362,8 @@ const Score = () => {
                           xmlns='http://www.w3.org/2000/svg'
                         >
                           <path
-                            fill-rule='evenodd'
-                            clip-rule='evenodd'
+                            fillRule='evenodd'
+                            clipRule='evenodd'
                             d='M0.51192 0.430571C0.826414 0.161005 1.29989 0.197426 1.56946 0.51192L7.56946 7.51192C7.8102 7.79279 7.8102 8.20724 7.56946 8.48811L1.56946 15.4881C1.29989 15.8026 0.826414 15.839 0.51192 15.5695C0.197426 15.2999 0.161005 14.8264 0.430571 14.5119L6.01221 8.00001L0.430571 1.48811C0.161005 1.17361 0.197426 0.700138 0.51192 0.430571Z'
                             fill='black'
                           />
@@ -381,7 +381,7 @@ const Score = () => {
           <div className='mt-5'>
             {/* Header */}
             <div
-              className='flex flex-row justify-between items-center '
+              className='flex flexRow justify-between items-center '
               data-tour='skills'
             >
               <h1 className='text-2xl font-bold text-white'>

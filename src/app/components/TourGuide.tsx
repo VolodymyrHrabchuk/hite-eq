@@ -24,6 +24,7 @@ export const TourGuide: React.FC<TourGuideProps> = ({ steps, onFinish }) => {
     setMounted(true); // <- ждем клиента
   }, []);
 
+
   // Жёстко прописанные позиции для каждого шага:
   const manualPositions = [
     { top: "390px", left: "50px" }, // Шаг 1
@@ -34,6 +35,7 @@ export const TourGuide: React.FC<TourGuideProps> = ({ steps, onFinish }) => {
 
   // При каждом изменении шага меняем стиль тултипа и скроллим
   useEffect(() => {
+    if (!mounted) return;
     const pos = manualPositions[stepIdx];
     setTooltipStyle({
       position: "absolute",
@@ -42,13 +44,17 @@ export const TourGuide: React.FC<TourGuideProps> = ({ steps, onFinish }) => {
       zIndex: 10002,
     });
 
-    // Скроллим так, чтобы тултип оказался в центре экрана
     const scrollToY = Math.max(
       parseInt(pos.top, 10) - window.innerHeight / 2,
       0
     );
     window.scrollTo({ top: scrollToY, behavior: "smooth" });
-  }, [stepIdx]);
+  }, [stepIdx, mounted]);
+
+  // только после всех хуков можно условно не рендерить портал
+  if (!mounted) {
+    return null;
+  }
 
   const isLast = stepIdx === steps.length - 1;
   const next = () => (isLast ? onFinish?.() : setStepIdx((i) => i + 1));
