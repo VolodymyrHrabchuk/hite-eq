@@ -39,7 +39,7 @@ const LandingPage = () => {
 
         <p className='text-white/90 text-2xl leading-relaxed mb-10'>
           This experience gives you a quick but meaningful look at how athletes
-          interact with HITE EQ. This should take 10–15 minutes.
+          interact with HITE EQ. This should take approximately 3 minutes.
         </p>
 
         <div className='mt-6 w-full'>
