@@ -13,7 +13,6 @@ const DEFAULT_TEAM_ID = 1;
 const formatUSPhone = (value: string) => {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   const len = digits.length;
-
   if (len === 0) return "";
   if (len < 4) return `(${digits}`;
   if (len < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
@@ -40,17 +39,16 @@ const Dashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Валидация полей
   const validate = () => {
     const errors: { name?: string; email?: string; phone?: string } = {};
 
-    // Имя
     if (!name.trim()) {
       errors.name = "Please enter your name";
     } else if (name.trim().length < 2) {
       errors.name = "The name must be at least 2 characters long.";
     }
 
-    // Email
     if (!emailInput.trim()) {
       errors.email = "Please enter your email";
     } else {
@@ -60,7 +58,6 @@ const Dashboard = () => {
       }
     }
 
-    // Телефон (XXX) XXX-XXXX
     if (!phoneNumberInput.trim()) {
       errors.phone = "Please enter your phone number";
     } else {
@@ -74,24 +71,22 @@ const Dashboard = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Отправка формы
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (!validate()) return;
 
     setLoading(true);
     try {
-      // Преобразуем "(123) 456-7890" → "1234567890"
       const digits = phoneNumberInput.replace(/\D/g, "");
-      // Если 10 цифр — добавляем +1, иначе просто +<числа>
       const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
 
       const payload = {
         email: emailInput,
         first_name: name,
         last_name: schoolName,
-        phone_number: e164, // ← именно E.164
+        phone_number: e164,
         team: DEFAULT_TEAM_ID,
       };
 
@@ -102,7 +97,6 @@ const Dashboard = () => {
       router.push(ROUTES.Assessments);
     } catch (err: any) {
       console.error(err);
-      // Раскрываем реальный текст ошибки, если он есть
       const msg =
         err.response?.data?.detail ??
         err.response?.data?.message ??
@@ -115,14 +109,20 @@ const Dashboard = () => {
     }
   };
 
-  return (
-    <div className='absolute inset-0 flex flex-col items-center text-white mt-30'>
-      <Image width={192} height={48} src={Logo} alt='Logo' quality={100} />
+  // Обработчик кнопки пропуска
+  const handleSkip = () => {
+    router.push(ROUTES.Assessments);
+  };
 
+  return (
+    <div className='absolute inset-0 flex flex-col items-center text-white mt-30 pb-10'>
+      {/* Логотип и заголовок */}
+      <Image width={192} height={48} src={Logo} alt='Logo' quality={100} />
       <h1 className='mt-18 mb-10 text-center text-[32px] font-bold'>
         Hello! Let's get acquainted
       </h1>
 
+      {/* Форма ввода */}
       <form className='space-y-8' onSubmit={handleSignup}>
         {/* Name */}
         <div>
@@ -225,9 +225,10 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* API Error */}
+        {/* Ошибка от API */}
         {error && <p className='text-red-500 text-sm text-center'>{error}</p>}
 
+        {/* Кнопка Continue */}
         <button
           type='submit'
           disabled={loading}
@@ -236,6 +237,15 @@ const Dashboard = () => {
           {loading ? "Signing up..." : "Continue"}
         </button>
       </form>
+
+      {/* Кнопка Skip */}
+      <button
+        type='button'
+        onClick={handleSkip}
+        className='mt-6 w-[480px] py-[17.5px] rounded-full bg-transparent border border-white text-white font-medium text-lg'
+      >
+        I already have an account
+      </button>
     </div>
   );
 };
