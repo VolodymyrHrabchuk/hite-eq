@@ -1,22 +1,21 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Arrow from "../../../public/arrow.svg";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 
-// Define a type for your question structure
 interface Question {
   id: number;
   question: string;
   position: number;
-  use_common_answer: boolean; // Indicates if it uses common answers or free text
+  use_common_answer: boolean;
   score_type: string;
   reverse_scoring: boolean;
   assessment: number;
 }
 
-// Define a type for the API response structure for assessments
 interface AssessmentAPIResponse {
   count: number;
   next: string | null;
@@ -35,23 +34,14 @@ interface AssessmentAPIResponse {
 export default function Assessment() {
   const router = useRouter();
 
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [fillPercentage, setFillPercentage] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [textVisible, setTextVisible] = useState(true);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Common answers for 'use_common_answer: true' questions (DISPLAY TEXT)
-  const commonAnswers = [
-    "Strongly disagree",
-    "Disagree",
-    "Neutral",
-    "Agree",
-    "Strongly Agree",
-  ];
 
   const [scores, setScores] = useState<Record<string, number>>({
     composure: 0,
@@ -60,7 +50,13 @@ export default function Assessment() {
     commitment: 0,
   });
 
-  // Map DISPLAY TEXT to the API-EXPECTED VALUE
+  const commonAnswers = [
+    "Strongly disagree",
+    "Disagree",
+    "Neutral",
+    "Agree",
+    "Strongly Agree",
+  ];
   const commonAnswerMap: Record<string, string> = {
     "Strongly disagree": "strong_disagree",
     Disagree: "disagree",
@@ -69,34 +65,35 @@ export default function Assessment() {
     "Strongly Agree": "strong_agree",
   };
 
+  // Безопасный расчёт прогресса
+  const updateProgress = (index: number) => {
+    const total = questions.length || 1;
+    setFillPercentage(Math.floor(((index + 1) / total) * 100));
+  };
+
   const handleBack = () => {
     if (selectedIndex > 0) {
       const prev = selectedIndex - 1;
       setSelectedIndex(prev);
-      setFillPercentage(Math.floor(((prev + 1) / questions.length) * 100));
+      updateProgress(prev);
     } else {
       router.back();
     }
   };
 
+  // Анимация текста и прогресса
   useEffect(() => {
-    // При смене вопроса сначала скрыть текст
     setTextVisible(false);
-
-    // Через 300ms показать текст и обновить fillPercentage
-    const timer = setTimeout(() => {
+    const t = setTimeout(() => {
       setTextVisible(true);
-      setFillPercentage(
-        Math.floor(((selectedIndex + 1) / questions.length) * 100)
-      );
+      updateProgress(selectedIndex);
     }, 50);
-
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [selectedIndex, questions.length]);
-  // --- API Call to Fetch Questions ---
+
+  // Fetch questions
   useEffect(() => {
     const fetchQuestions = async () => {
-      console.log("Fetching Discover assessment questions...");
       setLoadingQuestions(true);
       setError(null);
       try {
@@ -104,233 +101,128 @@ export default function Assessment() {
           "https://dashboard-athena.space/api/assessments/"
         );
         if (!response.ok) {
-          throw new Error(
-            `Failed to fetch assessments: ${response.statusText}`
-          );
+          throw new Error(`Failed to fetch: ${response.statusText}`);
         }
         const data: AssessmentAPIResponse = await response.json();
-
-        const discoverAssessment = data.results.find(
-          (assessment) =>
-            assessment.name === "Discover" && assessment.type === "discover"
+        const discover = data.results.find(
+          (a) => a.name === "Discover" && a.type === "discover"
         );
-
-        if (discoverAssessment && discoverAssessment.questions.length > 0) {
-          const sortedQuestions = discoverAssessment.questions.sort(
+        if (discover?.questions.length) {
+          const sorted = discover.questions.sort(
             (a, b) => a.position - b.position
           );
-          setQuestions(sortedQuestions);
-          console.log("Fetched Discover questions:", sortedQuestions);
-          setFillPercentage(0);
+          setQuestions(sorted);
+          setFillPercentage(Math.floor((1 / sorted.length) * 100));
         } else {
           setError("Discover assessment or its questions not found.");
-          setQuestions([]);
         }
-      } catch (err: any) {
-        console.error("Error fetching assessment questions:", err);
-        setError(`Failed to load questions: ${err.message}`);
-        setQuestions([]);
+      } catch (e: any) {
+        setError(`Failed to load questions: ${e.message}`);
       } finally {
         setLoadingQuestions(false);
       }
     };
-
     fetchQuestions();
   }, []);
 
-  // --- API Call to Submit Answers ---
-  // Payload type to conditionally allow 'answer' OR 'common_answer'
-  type AnswerPayload = {
-    question: number;
-    user: number;
-  } & (
-    | { answer: string; common_answer?: never } // For free-text questions
-    | { common_answer: string; answer?: never }
-  ); // For common-answer questions
+  // Сохраняем ответ локально
+  const saveLocalAnswer = (
+    questionId: number,
+    score: number,
+    commonAnswer: string | null,
+    textAnswer?: string
+  ) => {
+    const stored = JSON.parse(localStorage.getItem("answers") || "[]");
+    stored.push({
+      questionId,
+      score,
+      score_type: questions[selectedIndex]?.score_type,
+      commonAnswer,
+      answer: textAnswer ?? null,
+    });
+    localStorage.setItem("answers", JSON.stringify(stored));
+  };
 
-  const submitAnswerToApi = async (answerPayload: AnswerPayload) => {
+  const submitAnswerToApi = async (payload: any) => {
     setSubmittingAnswer(true);
-    setError(null);
-
     try {
-      console.log(
-        "Submitting answer payload:",
-        JSON.stringify(answerPayload, null, 2)
-      );
-
-      const response = await fetch(
-        "https://dashboard-athena.space/api/members-answers/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            // Add Authorization header if needed
-          },
-          body: JSON.stringify(answerPayload),
-        }
-      );
-
-      let responseData: any;
-      const contentType = response.headers.get("content-type");
-
-      if (contentType && contentType.includes("application/json")) {
-        try {
-          responseData = await response.json();
-        } catch (jsonParseError) {
-          console.error("Failed to parse JSON response:", jsonParseError);
-          setError(
-            `Server responded with JSON content-type but invalid JSON. Status: ${response.status}.`
-          );
-          return false;
-        }
-      } else {
-        responseData = await response.text();
-        console.error(
-          "Server returned non-JSON response (likely error):",
-          responseData
-        );
-      }
-
-      if (!response.ok) {
-        console.error(
-          "Failed to submit answer. Status:",
-          response.status,
-          "Details:",
-          responseData
-        );
-        let errorMessage = `Failed to submit answer (Status: ${response.status}).`;
-
-        if (typeof responseData === "object" && responseData !== null) {
-          const apiErrors = Object.values(responseData).flat().join("; ");
-          errorMessage += ` Details: ${apiErrors}`;
-        } else if (
-          typeof responseData === "string" &&
-          responseData.length > 0
-        ) {
-          errorMessage += ` Server Message: ${responseData.substring(0, 500)}${
-            responseData.length > 500 ? "..." : ""
-          }`;
-        }
-
-        setError(errorMessage);
-        return false;
-      }
-
-      console.log("Answer submitted successfully:", responseData);
-      return true;
-    } catch (err: any) {
-      console.error(
-        "Network or unexpected error during answer submission:",
-        err
-      );
-      setError(`An unexpected error occurred: ${err.message}`);
-      return false;
+      await fetch("https://dashboard-athena.space/api/members-answers/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      console.warn("API submission failed, continuing flow");
     } finally {
       setSubmittingAnswer(false);
     }
   };
 
-  // --- Logic to Proceed to Next Question / Finish Assessment ---
-  const proceedToNextQuestion = () => {
-    const newFillPercentage = Math.min(
-      100,
-      ((selectedIndex + 1) / questions.length) * 100
-    );
-    setFillPercentage(newFillPercentage);
-
-    if (selectedIndex < questions.length - 1) {
-      setSelectedIndex((prev) => prev + 1);
+  const proceedToNext = () => {
+    const next = selectedIndex + 1;
+    if (next < questions.length) {
+      setSelectedIndex(next);
+      updateProgress(next);
       setInputValue("");
     } else {
-      // сохраняем свежие Discover-скоры
+      // Финализация
       localStorage.setItem("discoverScores", JSON.stringify(scores));
-      // ставим флаг, что нужно показать попап про Train
       localStorage.setItem("showTrainPopup", "true");
-      // апгрейдим уровень
       localStorage.setItem("level", "2");
-      // переходим на Score
       router.push(ROUTES.SCORE);
     }
   };
 
-  // --- Event Handlers for UI Interactions ---
-  const handleOptionClick = async (optionText: string) => {
-    const currentQuestion = questions[selectedIndex];
-    if (!currentQuestion) return;
+  const handleOptionClick = async (text: string) => {
+    const current = questions[selectedIndex];
+    if (!current) return;
 
-    const userId =
-      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userId) {
-      setError("User ID not found. Please log in first.");
-      return;
-    }
-
-    // IMPORTANT: Map the display text to the API-expected value for common answers
-    const apiValue = commonAnswerMap[optionText];
-    if (!apiValue) {
-      setError(
-        `Invalid common answer mapping for: "${optionText}". Please check commonAnswerMap.`
-      );
-      return;
-    }
-    // 1) вычисляем очки: Neutral=1, Agree/StrongAgree=2, Disagree/StrongDisagree=0
-    const choiceIndex = commonAnswers.indexOf(optionText);
-    let pts = choiceIndex === 2 ? 1 : choiceIndex >= 3 ? 2 : 0;
-    // 2) компенсируем reverse_scoring
-    if (currentQuestion.reverse_scoring) pts = 2 - pts;
-    // 3) обновляем локальный стейт
-    setScores((prev) => ({
-      ...prev,
-      [currentQuestion.score_type]:
-        (prev[currentQuestion.score_type] || 0) + pts,
+    // Подсчет очков
+    const idx = commonAnswers.indexOf(text);
+    let pts = idx === 2 ? 1 : idx >= 3 ? 2 : 0;
+    if (current.reverse_scoring) pts = 2 - pts;
+    setScores((s) => ({
+      ...s,
+      [current.score_type]: (s[current.score_type] || 0) + pts,
     }));
-    // For common answer questions, send 'common_answer'
-    const payload: AnswerPayload = {
-      question: currentQuestion.id,
-      common_answer: apiValue, // Send the mapped string value here (e.g., "strong_disagree")
-      user: parseInt(userId, 10),
-    };
 
-    const success = await submitAnswerToApi(payload);
-    if (success) {
-      proceedToNextQuestion();
+    // Сохраняем локально
+    const commonAns = commonAnswerMap[text] ?? null;
+    saveLocalAnswer(current.id, pts, commonAns);
+
+    // Опционально на бэке
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      await submitAnswerToApi({
+        question: current.id,
+        user: parseInt(userId, 10),
+        common_answer: commonAns!,
+      });
     }
+
+    proceedToNext();
   };
 
   const handleSubmitInputAnswer = async () => {
-    if (inputValue.trim() === "") return;
+    const current = questions[selectedIndex];
+    if (!current || !inputValue.trim()) return;
 
-    const currentQuestion = questions[selectedIndex];
-    if (!currentQuestion) return;
+    // Текстовый ответ — без системы очков
+    saveLocalAnswer(current.id, 0, null, inputValue.trim());
 
-    const userId =
-      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userId) {
-      setError("User ID not found. Please log in first.");
-      return;
+    // Опционально на бэке
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      await submitAnswerToApi({
+        question: current.id,
+        user: parseInt(userId, 10),
+        answer: inputValue.trim(),
+      });
     }
 
-    // For free-text questions, send 'answer'
-    const payload: AnswerPayload = {
-      question: currentQuestion.id,
-      answer: inputValue, // Send the user's input here
-      user: parseInt(userId, 10),
-    };
-
-    const success = await submitAnswerToApi(payload);
-    if (success) {
-      proceedToNextQuestion();
-    }
+    proceedToNext();
   };
 
-  // --- Determine current question and its type ---
-  const currentQuestion = questions[selectedIndex];
-  const isInputQuestion = currentQuestion
-    ? !currentQuestion.use_common_answer
-    : false;
-
-  // --- Conditional Rendering for Loading, Error, and No Questions ---
   if (loadingQuestions) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-xl'>
@@ -341,9 +233,8 @@ export default function Assessment() {
 
   if (error) {
     return (
-      <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4'>
-        <p className='text-xl'>Error loading assessment:</p>
-        <p className='text-sm mt-2'>{error}</p>
+      <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 px-4 text-center'>
+        <p className='text-xl'>{error}</p>
         <button
           onClick={() => window.location.reload()}
           className='mt-4 px-6 py-2 bg-white text-black rounded-full'
@@ -354,7 +245,7 @@ export default function Assessment() {
     );
   }
 
-  if (questions.length === 0) {
+  if (!questions.length) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-xl'>
         No "Discover" assessment questions found. Please check API. 🤔
@@ -362,11 +253,14 @@ export default function Assessment() {
     );
   }
 
+  const current = questions[selectedIndex];
+  const isInput = !current.use_common_answer;
+
   return (
     <div className='absolute inset-0 flex flex-col items-center text-white mt-10 px-6'>
       <div className='flex flex-col items-start'>
         <h1
-          className='mt-18 mb-10 flex items-start font-bold text-[24px]'
+          className='mt-18 mb-10 flex items-start font-bold text-[24px] cursor-pointer'
           onClick={handleBack}
         >
           <Image
@@ -379,19 +273,10 @@ export default function Assessment() {
           Discover
         </h1>
 
-        <div
-          className='relative mx-auto'
-          style={{
-            width: "465px",
-            height: "10px",
-          }}
-        >
-          {/* фоновой трек */}
+        <div className='relative mx-auto' style={{ width: 465, height: 10 }}>
           <div className='absolute inset-0 bg-white/10 rounded-[12px]' />
-          {/* заполнение */}
           <div
-            className='absolute inset-y-0 left-0 bg-white rounded-[12px]
-                transition-all duration-500 ease-in-out'
+            className='absolute inset-y-0 left-0 bg-white rounded-[12px] transition-all duration-500 ease-in-out'
             style={{ width: `${fillPercentage}%` }}
           />
         </div>
@@ -400,27 +285,26 @@ export default function Assessment() {
           className={`mt-12 mb-12 w-[474px] h-[40px] transition-opacity duration-300 ease-in-out ${
             textVisible ? "opacity-100" : "opacity-0"
           }`}
-          key={selectedIndex} // Можно ключем сменить для принудительного rerender
         >
-          <p className='text-[20px] text-left'>{currentQuestion?.question}</p>
+          <p className='text-[20px] text-left'>{current.question}</p>
         </div>
       </div>
 
       <div className='space-y-4 flex flex-col'>
-        {isInputQuestion ? (
+        {isInput ? (
           <>
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className='w-[480px] h-[250px] p-4 rounded-xl bg-transparent border border-white/30 text-white resize-none  focus:outline-2 focus:outline-white'
+              className='w-[480px] h-[250px] p-4 rounded-xl bg-transparent border border-white/30 text-white resize-none focus:outline-2 focus:outline-white'
               placeholder='Type your answer...'
               disabled={submittingAnswer}
             />
             <button
               onClick={handleSubmitInputAnswer}
-              disabled={inputValue.trim() === "" || submittingAnswer}
+              disabled={!inputValue.trim() || submittingAnswer}
               className={`w-[480px] h-[60px] rounded-full transition duration-200 ease-in-out ${
-                inputValue.trim() !== "" && !submittingAnswer
+                inputValue.trim() && !submittingAnswer
                   ? "bg-white text-black"
                   : "bg-white/20 text-white/50 cursor-not-allowed"
               }`}
@@ -429,20 +313,14 @@ export default function Assessment() {
             </button>
           </>
         ) : (
-          commonAnswers.map((text, index) => (
+          commonAnswers.map((txt, i) => (
             <button
-              key={index}
-              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] fw-[500] transition duration-200 ease-in-out hover:bg-white/20'
-              style={{
-                background: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
-                borderRadius: "30px",
-              }}
-              onClick={() => handleOptionClick(text)}
+              key={i}
+              onClick={() => handleOptionClick(txt)}
               disabled={submittingAnswer}
-              aria-label={text}
+              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] hover:bg-white/20 transition'
             >
-              {text}
+              {txt}
             </button>
           ))
         )}

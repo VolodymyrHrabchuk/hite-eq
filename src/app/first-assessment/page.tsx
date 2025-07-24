@@ -24,42 +24,45 @@ const FinalScore = () => {
   const [errorFetching, setErrorFetching] = useState<string | null>(null);
 
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      setErrorFetching("User ID not found");
-      setLoadingScores(false);
-      return;
-    }
-
-    getUserScores(userId)
-      .then((data) => {
+    // 1) Всегда сначала пробуем взять локальные hiteScores
+    const raw = localStorage.getItem("hiteScores");
+    if (raw) {
+      try {
+        const p = JSON.parse(raw);
         setScores({
-          competitiveness: data.competitiveness_score,
-          composure: data.composure_score,
-          confidence: data.confidence_score,
-          commitment: data.commitment_score,
+          competitiveness: p.competitiveness,
+          composure: p.composure,
+          confidence: p.confidence,
+          commitment: 5.0,
         });
-      })
-      .catch((err) => {
-        console.warn("Team fetch failed, fallback to localStorage", err);
-        const raw = localStorage.getItem("hiteScores");
-        if (raw) {
-          try {
-            const p = JSON.parse(raw);
-            setScores({
-              competitiveness: p.competitiveness,
-              composure: p.composure,
-              confidence: p.confidence,
-              commitment: 5.0,
-            });
-          } catch {
-            setErrorFetching("Cannot parse local results");
-          }
-        } else {
-          setErrorFetching(err.message || "Failed to load results");
-        }
-      })
-      .finally(() => setLoadingScores(false));
+      } catch (err) {
+        console.warn("Cannot parse local hiteScores", err);
+      }
+    }
+    setLoadingScores(false);
+
+    // 2) Если есть userId — дублируем из API и обновляем
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      setLoadingScores(true);
+      getUserScores(userId)
+        .then((data) => {
+          setScores({
+            competitiveness: data.competitiveness_score,
+            composure: data.composure_score,
+            confidence: data.confidence_score,
+            commitment: data.commitment_score,
+          });
+          setErrorFetching(null);
+        })
+        .catch((err) => {
+          console.warn("API fetch failed, using local hiteScores", err);
+          // оставляем локальные данные
+        })
+        .finally(() => {
+          setLoadingScores(false);
+        });
+    }
   }, []);
 
   const startAgain = () => {
@@ -143,7 +146,6 @@ const FinalScore = () => {
         )}
       </div>
 
-      {/* Кнопка с вашим SVG */}
       <motion.button
         onClick={startAgain}
         animate={{
@@ -157,11 +159,10 @@ const FinalScore = () => {
             repeatType: "loop",
             ease: "easeInOut",
           },
-
           delay: 1.5,
         }}
         whileHover={{ scale: 1 }}
-        className='mt-10 p-2 bg-transparenttransition flex flex-col items-center justify-center space-y-2 '
+        className='mt-10 p-2 bg-transparenttransition flex flex-col items-center justify-center space-y-2'
       >
         <svg
           width='28'
@@ -180,7 +181,7 @@ const FinalScore = () => {
           />
         </svg>
       </motion.button>
-        <p className='text-white/60'>Tap to continue</p>
+      <p className='text-white/60'>Tap to continue</p>
     </div>
   );
 };

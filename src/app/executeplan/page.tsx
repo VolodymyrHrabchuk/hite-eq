@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Arrow from "../../../public/arrow.svg";
-import TransitCard from "../components/TransitCard";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 import { API_BASE } from "../lib/api";
@@ -18,10 +17,25 @@ interface Question {
   assessment: number;
 }
 
+interface AssessmentAPIResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: {
+    id: number;
+    name: string;
+    description: string;
+    is_active: boolean;
+    type: string | null;
+    position: number;
+    questions: Question[];
+  }[];
+}
+
 export default function Assessment() {
   const router = useRouter();
 
-  // 1) Вопросы из API
+  // 1) данные из API
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQ, setLoadingQ] = useState(true);
   const [errorQ, setErrorQ] = useState<string | null>(null);
@@ -33,54 +47,7 @@ export default function Assessment() {
   const [animate, setAnimate] = useState(true);
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
-  // 3) Анимация при смене вопроса
-  useEffect(() => {
-    setAnimate(false);
-    const t = setTimeout(() => setAnimate(true), 50);
-    return () => clearTimeout(t);
-  }, [selectedIndex]);
-
-  const handleBack = () => {
-    if (selectedIndex > 0) {
-      const prev = selectedIndex - 1;
-      setSelectedIndex(prev);
-      setFillPercentage((prev / questions.length) * 100);
-      setInputValue("");
-    } else {
-      router.back();
-    }
-  };
-  // 4) Загрузка Execute-вопросов
-  useEffect(() => {
-    async function load() {
-      setLoadingQ(true);
-      setErrorQ(null);
-      try {
-        const res = await fetch(`${API_BASE}/assessments/`);
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const data = await res.json();
-        const exec = data.results.find(
-          (a: any) => a.name === "Execute" || a.type === "execute"
-        );
-        if (!exec || !Array.isArray(exec.questions)) {
-          throw new Error("Execute assessment not found");
-        }
-        const sorted = exec.questions.sort(
-          (a: Question, b: Question) => a.position - b.position
-        );
-        setQuestions(sorted);
-        setFillPercentage(30);
-      } catch (e: any) {
-        console.error("Load Execute questions failed:", e);
-        setErrorQ(e.message);
-      } finally {
-        setLoadingQ(false);
-      }
-    }
-    load();
-  }, []);
-
-  // 5) Маппинг текста кнопки → enum API
+  // 3) маппинг для ответов типа common
   const commonAnswerMap: Record<string, string> = {
     "Strongly disagree": "strong_disagree",
     Disagree: "disagree",
@@ -89,84 +56,128 @@ export default function Assessment() {
     "Strongly Agree": "strong_agree",
   };
 
-  // 6) Отправка ответа на сервер
+  // 4) Анимация при смене вопроса
+  useEffect(() => {
+    setAnimate(false);
+    const t = setTimeout(() => setAnimate(true), 50);
+    return () => clearTimeout(t);
+  }, [selectedIndex]);
+
+  // 5) Безопасный расчёт прогресса
+  const updateProgress = (index: number) => {
+    const total = questions.length || 1;
+    setFillPercentage((index / total) * 100);
+  };
+
+  // 6) Кнопка «Назад»
+  const handleBack = () => {
+    if (selectedIndex > 0) {
+      const prev = selectedIndex - 1;
+      setSelectedIndex(prev);
+      updateProgress(prev);
+      setInputValue("");
+    } else {
+      router.back();
+    }
+  };
+
+  // 7) Загрузка вопросов «Execute»
+  useEffect(() => {
+    (async () => {
+      setLoadingQ(true);
+      setErrorQ(null);
+      try {
+        const res = await fetch(`${API_BASE}/assessments/`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data: AssessmentAPIResponse = await res.json();
+        const exec = data.results.find(
+          (a) => a.name === "Execute" || a.type === "execute"
+        );
+        if (!exec?.questions?.length) {
+          throw new Error("Execute assessment not found");
+        }
+        const sorted = exec.questions.sort((a, b) => a.position - b.position);
+        setQuestions(sorted);
+        updateProgress(0);
+      } catch (e: any) {
+        setErrorQ(e.message);
+      } finally {
+        setLoadingQ(false);
+      }
+    })();
+  }, []);
+
+  // 8) Отправка на бэкенд
   async function submitAnswerToApi(payload: any) {
     setSubmittingAnswer(true);
     try {
-      const res = await fetch(`${API_BASE}/members-answers/`, {
+      await fetch(`${API_BASE}/members-answers/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        console.error("Answer API error:", res.status, err);
-      }
     } catch (e) {
-      console.error("Network error sending answer:", e);
+      console.warn("Network error sending answer:", e);
     } finally {
       setSubmittingAnswer(false);
     }
   }
 
-  // 7) Обработчик общих ответов
+  // 9) Обработчик «общих» ответов
   const handleOptionClick = async (text: string) => {
     if (submittingAnswer) return;
     const q = questions[selectedIndex];
-    const userIdRaw =
-      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userIdRaw) return;
-
     const mapped = commonAnswerMap[text];
     if (!mapped) {
       console.error("No mapping for answer:", text);
       return;
     }
 
-    await submitAnswerToApi({
+    // Собираем полезoad
+    const payload: any = {
       question_id: q.id,
       common_answer: mapped,
-      user_id: parseInt(userIdRaw, 10),
-    });
+    };
+    const userId = localStorage.getItem("userId");
+    if (userId) payload.user_id = parseInt(userId, 10);
+
+    await submitAnswerToApi(payload);
 
     const next = selectedIndex + 1;
     if (next >= questions.length) {
-      // Последний ответ — сразу на Daily Affirmation
       router.push(ROUTES.AFFIRMATION);
       return;
     }
-
     setSelectedIndex(next);
-    setFillPercentage((next / questions.length) * 100);
+    updateProgress(next);
     setInputValue("");
   };
 
-  // 8) Обработчик текстового ответа
+  // 10) Обработчик текстового ответа
   const handleSubmitText = async () => {
     if (submittingAnswer || !inputValue.trim()) return;
     const q = questions[selectedIndex];
-    const userIdRaw =
-      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    if (!userIdRaw) return;
 
-    await submitAnswerToApi({
+    const payload: any = {
       question_id: q.id,
-      answer: inputValue,
-      user_id: parseInt(userIdRaw, 10),
-    });
+      answer: inputValue.trim(),
+    };
+    const userId = localStorage.getItem("userId");
+    if (userId) payload.user_id = parseInt(userId, 10);
+
+    await submitAnswerToApi(payload);
 
     const next = selectedIndex + 1;
     if (next >= questions.length) {
       router.push(ROUTES.AFFIRMATION);
       return;
     }
-
     setSelectedIndex(next);
-    setFillPercentage((next / questions.length) * 100);
+    updateProgress(next);
     setInputValue("");
   };
 
-  // 9) Загрузка / Ошибка / Нет вопросов
+  // 11) Loading / Error / Empty
   if (loadingQ) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-xl'>
@@ -196,7 +207,7 @@ export default function Assessment() {
     );
   }
 
-  // 10) Основной рендер
+  // 12) Основной рендер
   const current = questions[selectedIndex];
   const isInput = !current.use_common_answer;
 
@@ -208,7 +219,7 @@ export default function Assessment() {
         }`}
       >
         <h1
-          className='mt-18 mb-10 flex items-start font-bold text-[24px]'
+          className='mt-18 mb-10 flex items-start font-bold text-[24px] cursor-pointer'
           onClick={handleBack}
         >
           <Image
@@ -256,14 +267,12 @@ export default function Assessment() {
             </button>
           </>
         ) : (
-          (
-            Object.keys(commonAnswerMap) as Array<keyof typeof commonAnswerMap>
-          ).map((text) => (
+          Object.keys(commonAnswerMap).map((text) => (
             <button
               key={text}
-              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] font-medium hover:bg-white/20'
               onClick={() => handleOptionClick(text)}
               disabled={submittingAnswer}
+              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] font-medium hover:bg-white/20 transition'
             >
               {text}
             </button>

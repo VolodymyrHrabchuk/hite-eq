@@ -22,24 +22,19 @@ const formatUSPhone = (value: string) => {
 const Dashboard = () => {
   const router = useRouter();
 
-  // Поля формы
   const [name, setName] = useState("");
   const [schoolName, setSchoolName] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [phoneNumberInput, setPhoneNumberInput] = useState("");
 
-  // Ошибки валидации
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
   }>({});
-
-  // Ошибка от API и загрузка
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Валидация полей
   const validate = () => {
     const errors: { name?: string; email?: string; phone?: string } = {};
 
@@ -71,7 +66,6 @@ const Dashboard = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Отправка формы
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -90,10 +84,16 @@ const Dashboard = () => {
         team: DEFAULT_TEAM_ID,
       };
 
+      // 1) создаём пользователя в бэке
       const responseData = await createUser(payload);
       if (responseData.id) {
         localStorage.setItem("userId", responseData.id.toString());
       }
+
+      // 2) сохраняем все поля локально
+      localStorage.setItem("userData", JSON.stringify(payload));
+
+      // 3) переходим к опросу
       router.push(ROUTES.Assessments);
     } catch (err: any) {
       console.error(err);
@@ -109,20 +109,18 @@ const Dashboard = () => {
     }
   };
 
-  // Обработчик кнопки пропуска
   const handleSkip = () => {
+    // пропускаем форму, сразу к опросу
     router.push(ROUTES.Assessments);
   };
 
   return (
     <div className='absolute inset-0 flex flex-col items-center text-white mt-30 pb-10'>
-      {/* Логотип и заголовок */}
       <Image width={192} height={48} src={Logo} alt='Logo' quality={100} />
       <h1 className='mt-18 mb-10 text-center text-[32px] font-bold'>
         Hello! Let's get acquainted
       </h1>
 
-      {/* Форма ввода */}
       <form className='space-y-8' onSubmit={handleSignup}>
         {/* Name */}
         <div>
@@ -225,10 +223,8 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Ошибка от API */}
         {error && <p className='text-red-500 text-sm text-center'>{error}</p>}
 
-        {/* Кнопка Continue */}
         <button
           type='submit'
           disabled={loading}
@@ -238,7 +234,6 @@ const Dashboard = () => {
         </button>
       </form>
 
-      {/* Кнопка Skip */}
       <button
         type='button'
         onClick={handleSkip}

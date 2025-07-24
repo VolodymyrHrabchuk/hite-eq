@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Arrow from "../../../public/arrow.svg";
@@ -7,14 +8,12 @@ import { useRouter } from "next/navigation";
 import { ROUTES } from "../routes";
 import { API_BASE } from "../lib/api";
 
-// Define an interface for better type safety and readability
+// Интерфейс вопроса
 interface Question {
   id: number;
   question: string;
   position: number;
   use_common_answer: boolean;
-  // Use a union type for score_type if you have specific expected values,
-  // otherwise, 'string' is fine for generic cases.
   score_type:
     | "composure"
     | "confidence"
@@ -27,9 +26,10 @@ interface Question {
 
 export default function Assessment() {
   const router = useRouter();
-  const [questions, setQuestions] = useState<Question[]>([]); // Use Question interface
+
+  // Состояние
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [animate, setAnimate] = useState(true);
   const [textVisible, setTextVisible] = useState(true);
   const [fillPercentage, setFillPercentage] = useState(0);
   const [scores, setScores] = useState<Record<string, number>>({
@@ -38,239 +38,144 @@ export default function Assessment() {
     competitiveness: 0,
     commitment: 0,
   });
-
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Added for better error display
+  const [error, setError] = useState<string | null>(null);
 
+  // Тексты и маппинг для общих ответов
+  const commonAnswerText = [
+    "Strongly disagree",
+    "Disagree",
+    "Neutral",
+    "Agree",
+    "Strongly agree",
+  ];
+  const commonAnswerMap = [
+    "strong_disagree",
+    "disagree",
+    "neutral",
+    "agree",
+    "strong_agree",
+  ];
+
+  // Функция для безопасного обновления прогресса
+  const updateProgress = (index: number) => {
+    const total = questions.length || 1;
+    setFillPercentage(Math.floor(((index + 1) / total) * 100));
+  };
+
+  // Получаем вопросы из API
+  // Иcходный fetchQuestions — без updateProgress
   useEffect(() => {
-    // при каждом переключении вопроса: сброс → включение анимации
-    setAnimate(false);
-    const timer = setTimeout(() => setAnimate(true), 50);
-    return () => clearTimeout(timer);
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    // При смене вопроса сначала скрыть текст
-    setTextVisible(false);
-
-    // Через 300ms показать текст и обновить fillPercentage
-    const timer = setTimeout(() => {
-      setTextVisible(true);
-      setFillPercentage(
-        Math.floor(((selectedIndex + 1) / questions.length) * 100)
-      );
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [selectedIndex, questions.length]);
-
-  useEffect(() => {
-    const fetchHITEQuestions = async () => {
+    const fetchQuestions = async () => {
       setLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       try {
-        const response = await fetch(`${API_BASE}/assessments/`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const res = await fetch(`${API_BASE}/assessments/`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
         const hite = data.results.find(
           (a: any) => a.name === "HITE Assessment"
         );
-
-        if (hite && hite.questions && hite.questions.length > 0) {
-          const sortedQuestions: Question[] = hite.questions.sort(
-            (a: Question, b: Question) => a.position - b.position
-          );
-          setQuestions(sortedQuestions);
-          // Reset fill percentage and scores on new assessment load
-          setFillPercentage(0);
-          setScores({
-            composure: 0,
-            confidence: 0,
-            competitiveness: 0,
-            commitment: 0,
-          });
-        } else {
-          console.warn(
-            "HITE Assessment or its questions not found in the fetched data. Showing error message."
-          );
-          setError(
-            "HITE Assessment questions not found. Please check API data."
-          );
-        }
+        if (!hite?.questions?.length) throw new Error("Not found");
+        const sorted = hite.questions.sort(
+          (a: Question, b: Question) => a.position - b.position
+        );
+        setQuestions(sorted);
       } catch (e: any) {
-        console.error("Error fetching assessments:", e);
-        setError(`Failed to load assessment: ${e.message}`);
+        setError(e.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchHITEQuestions();
+    fetchQuestions();
   }, []);
 
-  const handleBack = () => {
-    if (selectedIndex > 0) {
-      const prev = selectedIndex - 1;
-      setSelectedIndex(prev);
-      setFillPercentage(Math.floor(((prev + 1) / questions.length) * 100));
-    } else {
-      router.back();
+  // Новый эффект — сразу выставляем прогресс для первого вопроса,
+  // прежде чем сработает анимация текста
+  useEffect(() => {
+    if (questions.length > 0) {
+      // (1 / N) * 100%
+      setFillPercentage(Math.floor((1 / questions.length) * 100));
+      setSelectedIndex(0);
+      setTextVisible(true);
     }
-  };
-  // Centralized function to finalize assessment and navigate
-  const finalizeAssessment = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hiteScores", JSON.stringify(scores));
-      // Assuming level 2 is the next step after HITE Assessment
-    }
+  }, [questions]);
 
+  // Существующий эффект только для анимации текста и последующего updateProgress()
+  useEffect(() => {
+    if (questions.length === 0) return;
+    setTextVisible(false);
+    const t = setTimeout(() => {
+      setTextVisible(true);
+      updateProgress(selectedIndex);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [selectedIndex, questions.length]);
+
+  // Завершение опроса
+  const finalizeAssessment = () => {
+    // сохраняем локально баллы
+    localStorage.setItem("hiteScores", JSON.stringify(scores));
     localStorage.setItem("showDiscoverPopup", "true");
     localStorage.setItem("level", "1");
     router.push("/first-assessment");
   };
 
+  // Обработчик ответа
   const handleAnswer = async (choiceIndex: number) => {
-    const currentQuestion = questions[selectedIndex];
+    const current = questions[selectedIndex];
+    if (!current) return;
 
-    // Defensive check: ensure current question exists and has score_type
-    if (
-      !currentQuestion ||
-      typeof currentQuestion.score_type === "undefined" ||
-      currentQuestion.score_type === null
-    ) {
-      console.warn(
-        `Question at index ${selectedIndex} is malformed or missing score_type. Skipping API submission and advancing locally.`
-      );
-      const nextIndexAfterSkip = selectedIndex + 1;
-      if (nextIndexAfterSkip < questions.length) {
-        setSelectedIndex(nextIndexAfterSkip);
-        setFillPercentage(
-          Math.floor((nextIndexAfterSkip / questions.length) * 100)
-        );
-      } else {
-        finalizeAssessment(); // All questions processed (including skips), move to score page
-      }
-      return;
+    // 1) Подсчет очков
+    let pts = choiceIndex === 2 ? 1 : choiceIndex >= 3 ? 2 : 0;
+    if (current.reverse_scoring) pts = 2 - pts;
+
+    setScores((s) => ({
+      ...s,
+      [current.score_type]: (s[current.score_type] || 0) + pts,
+    }));
+
+    // 2) Сохраняем ответ локально
+    const stored = JSON.parse(localStorage.getItem("answers") || "[]");
+    stored.push({
+      questionId: current.id,
+      score: pts,
+      score_type: current.score_type,
+      commonAnswer: current.use_common_answer
+        ? commonAnswerMap[choiceIndex]
+        : null,
+    });
+    localStorage.setItem("answers", JSON.stringify(stored));
+
+    // 3) Если есть userId — дублируем на бэкенд
+    const userIdRaw = localStorage.getItem("userId");
+    if (userIdRaw) {
+      fetch(`${API_BASE}/members-answers/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: current.id,
+          user: parseInt(userIdRaw, 10),
+          common_answer: current.use_common_answer
+            ? commonAnswerMap[choiceIndex]
+            : undefined,
+          answer: null,
+        }),
+      }).catch(() => {
+        console.warn("Backend submission failed, but continuing flow");
+      });
     }
 
-    // --- NEW STRICTER SCORING LOGIC ---
-    // The common answers are indexed 0-4:
-    // 0: Strongly disagree
-    // 1: Disagree
-    // 2: Neutral
-    // 3: Agree
-    // 4: Strongly Agree
-
-    let pointsForCurrentAnswer = 0;
-    // Map choiceIndex to points (0, 1, or 2) to get scores into the 4-7 range
-    if (choiceIndex === 2) {
-      // Neutral
-      pointsForCurrentAnswer = 1;
-    } else if (choiceIndex === 3 || choiceIndex === 4) {
-      // Agree or Strongly Agree
-      pointsForCurrentAnswer = 2;
-    }
-    // Strongly Disagree (0) and Disagree (1) will implicitly get 0 points by this logic.
-
-    // Apply reverse scoring if applicable
-    // If reverse_scoring is true, and choiceIndex was high (e.g., Strongly Agree), it means a *low* score
-    // So, we flip the points: max_points - current_points.
-    // Max points per question is now 2 (Strongly Agree/Agree without reverse scoring).
-    const scoreToApply = currentQuestion.reverse_scoring
-      ? 2 - pointsForCurrentAnswer
-      : pointsForCurrentAnswer;
-
-    const updatedScores = {
-      ...scores,
-      [currentQuestion.score_type]:
-        (scores[currentQuestion.score_type] ?? 0) + scoreToApply,
-    };
-    setScores(updatedScores);
-
-    // --- Common answer enum mapping for API (unchanged) ---
-    const commonAnswerMap = [
-      "strong_disagree",
-      "disagree",
-      "neutral",
-      "agree",
-      "strong_agree",
-    ];
-    const commonAnswerForApi = currentQuestion.use_common_answer
-      ? commonAnswerMap[choiceIndex]
-      : null;
-
-    // --- Get user ID from localStorage ---
-    const userIdRaw =
-      typeof window !== "undefined" ? localStorage.getItem("userId") : null;
-    const userId = userIdRaw ? parseInt(userIdRaw, 10) : 0;
-
-    if (isNaN(userId) || userId === 0) {
-      console.error(
-        "User ID not found in localStorage or is invalid. Cannot submit answer to API."
-      );
-      // Allow progression even if API submission fails due to missing user ID
+    // 4) Переходим к следующему вопросу или завершаем
+    const next = selectedIndex + 1;
+    if (next >= questions.length) {
+      finalizeAssessment();
     } else {
-      try {
-        const payload = {
-          question: currentQuestion.id, // даём именно ключ `question`
-          answer: null, // если нет текстового ответа
-          common_answer: commonAnswerForApi, // если true → одно из enum
-          user: userId, // и ключ `user`
-        };
-
-        const response = await fetch(`${API_BASE}/members-answers/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        // Attempt to parse JSON response for detailed errors
-        let responseData;
-        try {
-          responseData = await response.json();
-        } catch (jsonError) {
-          console.warn(
-            "API response was not valid JSON, logging as text. Error:",
-            jsonError
-          );
-          responseData = await response.text(); // Fallback to text
-        }
-
-        if (!response.ok) {
-          console.error(
-            "Failed to submit answer to API. Status:",
-            response.status,
-            "Details:",
-            responseData
-          );
-          setError(
-            `API submission error (Status: ${
-              response.status
-            }): ${JSON.stringify(responseData)}`
-          );
-        } else {
-          console.log("Answer submitted successfully to API:", responseData);
-        }
-      } catch (error: any) {
-        console.error("Network error or issue during API call:", error);
-        setError(`Network error: ${error.message}`);
-      }
-    }
-
-    // --- Progression logic (local state update and routing) ---
-    const nextIndex = selectedIndex + 1;
-
-    if (nextIndex >= questions.length) {
-      finalizeAssessment(); // All questions answered, finalize and navigate
-    } else {
-      setSelectedIndex(nextIndex);
-      setFillPercentage(Math.floor((nextIndex / questions.length) * 100));
+      setSelectedIndex(next);
     }
   };
 
-  // --- UI Rendering ---
+  // Отображаем разные состояния
   if (loading) {
     return (
       <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
@@ -278,7 +183,6 @@ export default function Assessment() {
       </div>
     );
   }
-
   if (error) {
     return (
       <div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center px-4'>
@@ -287,24 +191,15 @@ export default function Assessment() {
       </div>
     );
   }
-
-  // Handle case where HITE Assessment might not be found or has no questions
-  if (questions.length === 0 && !loading) {
+  if (questions.length === 0) {
     return (
-      <div className='absolute inset-0 flex flex-col items-center justify-center text-white mt-10 px-6'>
-        <h1 className='mt-18 mb-10 font-bold text-[37px]'>
-          No HITE Assessment Questions Found
-        </h1>
-        <p className='text-[14px] text-center text-white/80'>
-          It looks like the HITE Assessment is unavailable. Please check the
-          backend configuration or try again later.
-        </p>
+      <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
+        No HITE Assessment Questions Found
       </div>
     );
   }
-
-  // This block handles the "You Did It" screen when all questions are processed locally
   if (selectedIndex >= questions.length) {
+    // Конечный экран “You Did It”
     return (
       <div className='absolute inset-0 flex flex-col items-center text-white mt-10 px-6'>
         <h1 className='mt-18 mb-10 font-bold text-[37px]'>You Did It 🎉</h1>
@@ -317,26 +212,16 @@ export default function Assessment() {
     );
   }
 
-  const currentQuestion = questions[selectedIndex];
-
-  // Defensive check for currentQuestion before rendering its properties
-  if (!currentQuestion) {
-    console.error(
-      "currentQuestion is null/undefined during render. This should not happen if questions array is handled correctly."
-    );
-    return (
-      <div className='absolute inset-0 flex items-center justify-center text-white text-2xl'>
-        An unexpected display error occurred. Please refresh.
-      </div>
-    );
-  }
+  // Текущий вопрос
+  const current = questions[selectedIndex];
 
   return (
     <div className='absolute inset-0 flex flex-col items-center text-white mt-10 px-6'>
+      {/* Заголовок + кнопка назад */}
       <div className='flex flex-col items-start'>
         <h1
-          className='mt-18 mb-10 flex items-start font-bold text-[24px] '
-          onClick={handleBack}
+          className='mt-18 mb-10 flex items-start font-bold text-[24px] cursor-pointer'
+          onClick={() => router.back()}
         >
           <Image
             src={Arrow}
@@ -348,6 +233,7 @@ export default function Assessment() {
           HITE Assessment
         </h1>
 
+        {/* Прогресс-бар */}
         <div className='w-[465px] h-[10px] mx-auto bg-white/10 rounded-[12px] overflow-hidden'>
           <div
             className='h-full bg-white transition-all duration-500 ease-in-out rounded-[12px]'
@@ -355,39 +241,26 @@ export default function Assessment() {
           />
         </div>
 
+        {/* Вопрос */}
         <div
           className={`mt-12 mb-12 w-[474px] h-[40px] transition-opacity duration-300 ease-in-out ${
             textVisible ? "opacity-100" : "opacity-0"
           }`}
-          key={selectedIndex} // Можно ключем сменить для принудительного rerender
         >
-          <p className='text-[20px] text-left'>
-            {questions[selectedIndex]?.question}
-          </p>
+          <p className='text-[20px] text-left'>{current.question}</p>
         </div>
       </div>
 
+      {/* Ответы */}
       <div className='space-y-4 flex flex-col'>
-        {/* Render common answer buttons only if use_common_answer is true for the current question */}
-        {currentQuestion.use_common_answer ? (
-          [
-            "Strongly disagree",
-            "Disagree",
-            "Neutral",
-            "Agree",
-            "Strongly agree",
-          ].map((text, index) => (
+        {current.use_common_answer ? (
+          commonAnswerText.map((txt, i) => (
             <button
-              key={index}
-              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] fw-[500] transition duration-200 ease-in-out hover:bg-white/20'
-              style={{
-                background: "rgba(255, 255, 255, 0.04)",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
-                borderRadius: "30px",
-              }}
-              onClick={() => handleAnswer(index)}
+              key={i}
+              onClick={() => handleAnswer(i)}
+              className='w-[480px] h-[60px] rounded-full bg-transparent border border-white/30 text-white text-[20px] hover:bg-white/20 transition'
             >
-              {text}
+              {txt}
             </button>
           ))
         ) : (
@@ -397,65 +270,8 @@ export default function Assessment() {
               input.
             </p>
             <p className='mt-2 text-sm'>
-              Please implement a text input and a submit button for question ID:{" "}
-              {currentQuestion.id}.
+              Please implement a textarea + submit if needed.
             </p>
-            <button
-              className='w-[480px] h-[60px] rounded-full bg-blue-500/50 border border-blue-500/70 text-white text-[20px] fw-[500] transition duration-200 ease-in-out hover:bg-blue-600/50 mt-4'
-              onClick={async () => {
-                // Made async to await potential API call
-                console.warn(
-                  "Skipping text-based question submission as UI is not implemented."
-                );
-                const userIdRaw =
-                  typeof window !== "undefined"
-                    ? localStorage.getItem("userId")
-                    : null;
-                const userId = userIdRaw ? parseInt(userIdRaw, 10) : 0;
-
-                if (userId !== 0) {
-                  try {
-                    const response = await fetch(
-                      "https://dashboard-athena.space/api/members-answers/",
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          question: currentQuestion.id,
-                          answer: "N/A - Text input not handled by UI", // Placeholder answer
-                          common_answer: null,
-                          user: userId,
-                        }),
-                      }
-                    );
-                    if (!response.ok)
-                      console.error(
-                        "Failed to submit placeholder answer for text question."
-                      );
-                    else
-                      console.log("Submitted placeholder for text question.");
-                  } catch (err) {
-                    console.error("Network error submitting placeholder:", err);
-                  }
-                } else {
-                  console.warn(
-                    "User ID missing, cannot submit placeholder answer for text question."
-                  );
-                }
-
-                const nextIndex = selectedIndex + 1;
-                if (nextIndex < questions.length) {
-                  setSelectedIndex(nextIndex);
-                  setFillPercentage(
-                    Math.floor((nextIndex / questions.length) * 100)
-                  );
-                } else {
-                  finalizeAssessment();
-                }
-              }}
-            >
-              Next Question (Skip Input)
-            </button>
           </div>
         )}
       </div>
